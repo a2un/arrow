@@ -81,20 +81,22 @@ std::unique_ptr<PageReader> RowGroupReader::GetColumnPageReader(int i) {
 }
 
 
-std::unique_ptr<PageReader> RowGroupReader::GetColumnPageReaderWithIndex(int i,void* predicate, int64_t& min_index, int predicate_col, int64_t& row_index,Type::type type_num) {
+std::unique_ptr<PageReader> RowGroupReader::GetColumnPageReaderWithIndex(int i,void* predicate, int64_t& min_index,
+                                            int predicate_col, int64_t& row_index,Type::type type_num, bool binary_search, int64_t& count_pages_scanned) {
   DCHECK(i < metadata()->num_columns())
       << "The RowGroup only has " << metadata()->num_columns()
       << "columns, requested column: " << i;
-  return contents_->GetColumnPageReaderWithIndex(i,predicate, min_index, predicate_col, row_index,type_num);
+  return contents_->GetColumnPageReaderWithIndex(i,predicate, min_index, predicate_col, row_index,type_num, binary_search, count_pages_scanned);
 }
 
-std::shared_ptr<ColumnReader> RowGroupReader::ColumnWithIndex(int i,void* predicate, int64_t& min_index, int predicate_col, int64_t& row_index,Type::type type_num) {
+std::shared_ptr<ColumnReader> RowGroupReader::ColumnWithIndex(int i,void* predicate, int64_t& min_index, int predicate_col, 
+                                  int64_t& row_index,Type::type type_num, bool binary_search, int64_t& count_pages_scanned) {
   DCHECK(i < metadata()->num_columns())
       << "The RowGroup only has " << metadata()->num_columns()
       << "columns, requested column: " << i;
   const ColumnDescriptor* descr = metadata()->schema()->Column(i);
 
-  std::unique_ptr<PageReader> page_reader = contents_->GetColumnPageReaderWithIndex(i,predicate, min_index, predicate_col, row_index,type_num);
+  std::unique_ptr<PageReader> page_reader = contents_->GetColumnPageReaderWithIndex(i,predicate, min_index, predicate_col, row_index,type_num, binary_search, count_pages_scanned);
   return ColumnReader::Make(
       descr, std::move(page_reader),
       const_cast<ReaderProperties*>(contents_->properties())->memory_pool());
@@ -229,7 +231,8 @@ class SerializedRowGroup : public RowGroupReader::Contents {
       return sorted;
   }
 
-  void GetPageIndex(void* predicate, int64_t& min_index,int64_t& row_index, parquet::format::ColumnIndex col_index, parquet::format::OffsetIndex offset_index,Type::type type_num) const {
+  void GetPageIndex(void* predicate, int64_t& min_index,int64_t& row_index, parquet::format::ColumnIndex col_index, 
+                    parquet::format::OffsetIndex offset_index,Type::type type_num, bool with_binarysearch, int64_t& count_pages_scanned) const {
       bool sorted = isSorted(col_index,offset_index,type_num);
       switch(type_num) {
          case Type::BOOLEAN:{
@@ -238,7 +241,7 @@ class SerializedRowGroup : public RowGroupReader::Contents {
          }
          case Type::INT32:{
               int32_t v = *((int32_t*) predicate);
-              if(sorted){
+              if(sorted && with_binarysearch){
                   if(col_index.min_values.size() >= 2){
                     uint64_t last_index = col_index.min_values.size()-1;
                     uint64_t begin_index = 0;
@@ -287,7 +290,7 @@ class SerializedRowGroup : public RowGroupReader::Contents {
          case Type::INT64:
          {
              int64_t v = *((int64_t*) predicate);
-             if(sorted){
+             if(sorted && with_binarysearch){
                   if(col_index.min_values.size() >= 2){
                     uint64_t last_index = col_index.min_values.size()-1;
                     uint64_t begin_index = 0;
@@ -336,7 +339,7 @@ class SerializedRowGroup : public RowGroupReader::Contents {
          case Type::INT96:
          {
              uint32_t v = *((uint32_t*) predicate);
-              if(sorted){
+              if(sorted && with_binarysearch){
                   if(col_index.min_values.size() >= 2){
                     uint64_t last_index = col_index.min_values.size()-1;
                     uint64_t begin_index = 0;
@@ -385,7 +388,7 @@ class SerializedRowGroup : public RowGroupReader::Contents {
          case Type::FLOAT:
          {
              float v = *((float*) predicate);
-             if(sorted){
+             if(sorted && with_binarysearch){
                   if(col_index.min_values.size() >= 2){
                     uint64_t last_index = col_index.min_values.size()-1;
                     uint64_t begin_index = 0;
@@ -439,7 +442,7 @@ class SerializedRowGroup : public RowGroupReader::Contents {
          case Type::DOUBLE:
          {
              double v = *((double*) predicate);
-             if(sorted){
+             if(sorted && with_binarysearch){
                   if(col_index.min_values.size() >= 2){
                     uint64_t last_index = col_index.min_values.size()-1;
                     uint64_t begin_index = 0;
@@ -493,7 +496,7 @@ class SerializedRowGroup : public RowGroupReader::Contents {
          {
              char* v = (char*) predicate;
              std::string str(v);
-             if(sorted){
+             if(sorted && with_binarysearch){
                   if(col_index.min_values.size() >= 2){
                     uint64_t last_index = col_index.min_values.size()-1;
                     uint64_t begin_index = 0;
@@ -545,7 +548,7 @@ class SerializedRowGroup : public RowGroupReader::Contents {
          {
              char* v = (char*) predicate;
              std::string str(v);
-             if(sorted){
+             if(sorted && with_binarysearch){
                   if(col_index.min_values.size() >= 2){
                     uint64_t last_index = col_index.min_values.size()-1;
                     uint64_t begin_index = 0;
@@ -680,7 +683,8 @@ class SerializedRowGroup : public RowGroupReader::Contents {
     DeserializeThriftMsg(reinterpret_cast<const uint8_t*>(page_buffer.data()), &length, offset_index);
   }
 
-  std::unique_ptr<PageReader> GetColumnPageReaderWithIndex(int column_index, void* predicate, int64_t& min_index, int predicate_col, int64_t& row_index,Type::type type_num) {
+  std::unique_ptr<PageReader> GetColumnPageReaderWithIndex(int column_index, void* predicate, int64_t& min_index, 
+                              int predicate_col, int64_t& row_index,Type::type type_num, bool with_binarysearch, int64_t& count_pages_scanned) {
     // Read column chunk from the file
     auto col = row_group_metadata_->ColumnChunk(column_index);
 
@@ -702,7 +706,7 @@ class SerializedRowGroup : public RowGroupReader::Contents {
         DeserializeColumnIndex(*reinterpret_cast<ColumnChunkMetaData*>(col.get()),&col_index, source_, properties_);
         DeserializeOffsetIndex(*reinterpret_cast<ColumnChunkMetaData*>(col.get()),&offset_index, source_, properties_);
         if ( predicate_col == column_index )
-            GetPageIndex(predicate, min_index,row_index, col_index,offset_index,type_num);
+            GetPageIndex(predicate, min_index,row_index, col_index,offset_index,type_num,with_binarysearch, count_pages_scanned);
         else 
            GetPageWithRowIndex(min_index, offset_index, row_index);
     }

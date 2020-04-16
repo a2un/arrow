@@ -77,9 +77,14 @@ typedef return_multiple return_multiple;
 
 typedef struct time_to_run{
        float wo_index = 0.0;
+       float wo_total_pages_scanned = 0.0;
        float wo_totaltime = 0.0;
        float w_totaltime = 0.0;
        float w_index = 0.0;
+       float w_total_pages_scanned = 0.0;
+       float b_totaltime = 0.0;
+       float b_index = 0.0;
+       float b_total_pages_scanned = 0.0;
   } trun;
 
 int parquet_writer(int argc, char** argv);
@@ -87,15 +92,16 @@ int parquet_writer(int argc, char** argv);
 void returnReaderwithType(std::shared_ptr<parquet::ColumnReader> cr, parquet::ColumnReader*& cr1);
 
 return_multiple getPredicate(std::shared_ptr<parquet::ColumnReader> cr,std::shared_ptr<parquet::RowGroupReader> rg,char* predicate,
-                             int& col_id,int64_t& page_index,int& PREDICATE_COL,int64_t& row_index,bool with_index);
+                             int& col_id,int64_t& page_index,int& PREDICATE_COL,int64_t& row_index,bool with_index, 
+                             bool binary_search, int64_t& count_pages_scanned);
 
 bool printVal(std::shared_ptr<parquet::ColumnReader>column_reader, parquet::ColumnReader* int64_reader,int ind,return_multiple vals,int64_t& row_counter,
                bool checkpredicate,int equal_to);
 bool printRange(std::shared_ptr<parquet::ColumnReader>column_reader, parquet::ColumnReader* int64_reader,int ind,return_multiple vals_min,return_multiple vals_max,int64_t& row_counter);
 
-trun run_for_one_predicate(int num_columns,int num_row_groups, std::unique_ptr<parquet::ParquetFileReader>& parquet_reader, int col_id,char** argv,int predicate_index, int equal_to);
+trun run_for_one_predicate(int num_columns,int num_row_groups, std::unique_ptr<parquet::ParquetFileReader>& parquet_reader, int col_id,char** argv,int predicate_index, int equal_to, bool binary_search);
 
-void first_pass_for_predicate_only(std::shared_ptr<parquet::RowGroupReader> rg,int predicate_column_number,int num_columns, char* predicate,bool with_index, int equal_to);
+int64_t first_pass_for_predicate_only(std::shared_ptr<parquet::RowGroupReader> rg,int predicate_column_number,int num_columns, char* predicate,bool with_index, int equal_to, bool binary_search);
 
 int parquet_reader(int argc, char** argv);
 /**************Declaration END*********************************/
@@ -160,14 +166,14 @@ int parquet_reader(int argc,char** argv) {
         // Point Queries & range queries
         
         int64_t num_rows = 0;
-        int num_queries = 5;
+        int num_queries = 1000;
         int num_runs = 5;
 
         getnumrows(argv[2],num_rows);
         
         trun times_by_type[num_columns];
         std::ofstream runfile;
-        runfile.open(PARQUET_FILENAME+"-run-results.txt");
+        runfile.open(PARQUET_FILENAME+"-run-results-w-wo-binarysearch.txt");
         runfile << time(NULL) << std::endl;
         runfile << "#################### RUNNING POINT QUERIES ####################" << std::endl;
         for ( int col_id = 0; col_id < num_columns; col_id++){
@@ -176,6 +182,11 @@ int parquet_reader(int argc,char** argv) {
           times_by_type[col_id].wo_index = 0.0;
           times_by_type[col_id].wo_totaltime = 0.0;
           times_by_type[col_id].w_totaltime = 0.0;
+          times_by_type[col_id].b_totaltime = 0.0;
+          times_by_type[col_id].b_index = 0.0;
+          times_by_type[col_id].wo_total_pages_scanned = 0.0;
+          times_by_type[col_id].w_total_pages_scanned = 0.0;
+          times_by_type[col_id].b_total_pages_scanned = 0.0;
         }
         
         // for each column so many queries run so many times.
@@ -193,17 +204,25 @@ int parquet_reader(int argc,char** argv) {
               predicates[predicateindex] = predicate_val;
             
               runfile << "#############" << " col_num " << col_id << " run number "<< i << " Query number " << predicateindex << " predicate: " << predicates[predicateindex]  << " #############" << std::endl;
-              trun avgtime = run_for_one_predicate(num_columns,num_row_groups,parquet_reader,col_id,predicates,predicateindex,0);
+              trun avgtime = run_for_one_predicate(num_columns,num_row_groups,parquet_reader,col_id,predicates,predicateindex,0,true);
               times_by_type[col_id].wo_totaltime += avgtime.wo_totaltime;
               times_by_type[col_id].w_totaltime += avgtime.w_totaltime;
+              times_by_type[col_id].b_totaltime += avgtime.b_totaltime;
+              times_by_type[col_id].wo_total_pages_scanned += avgtime.wo_total_pages_scanned;
+              times_by_type[col_id].w_total_pages_scanned += avgtime.w_total_pages_scanned;
+              times_by_type[col_id].b_total_pages_scanned += avgtime.b_total_pages_scanned;
               predicateindex++;
             }
           }
         }
         for (int col_id = 0; col_id < num_columns; col_id++ ) {
           runfile<< "col_num " << col_id << std::endl;
-          runfile << std::setprecision(3)  <<"POINT QUERY: minimum average time w/o index" << (times_by_type[col_id].wo_totaltime/(num_runs*num_queries)) << std::endl;
-          runfile << std::setprecision(3)  <<"POINT QUERY: minimum average time w index" << (times_by_type[col_id].w_totaltime/(num_runs*num_queries)) << std::endl;
+          runfile << std::setprecision(3)  <<"POINT QUERY: minimum average time w/o index " 
+          << (times_by_type[col_id].wo_totaltime/(num_runs*num_queries)) << "avg num of page scanned " << (times_by_type[col_id].wo_total_pages_scanned/(num_runs*num_queries)) << std::endl;
+          runfile << std::setprecision(3)  <<"POINT QUERY: minimum average time w index " 
+          << (times_by_type[col_id].w_totaltime/(num_runs*num_queries)) << "avg num of page scanned " << (times_by_type[col_id].w_total_pages_scanned/(num_runs*num_queries)) << std::endl;
+          runfile << std::setprecision(3)  <<"POINT QUERY: minimum average time w index without binary " 
+          << (times_by_type[col_id].b_totaltime/(num_runs*num_queries)) << "avg num of page scanned " << (times_by_type[col_id].b_total_pages_scanned/(num_runs*num_queries)) << std::endl;
         }
         runfile << "###############################################################" << std::endl;
         runfile << "#################### RUNNING RANGE QUERIES ####################" << std::endl; 
@@ -222,24 +241,35 @@ int parquet_reader(int argc,char** argv) {
               convertToCharptr(predicate,predicate_val,intlog(num_rows));
               predicates[predicateindex] = predicate_val;
               runfile << "#############" << " col_num " << col_id << " run number "<< i << " Query number " << predicateindex << " predicate: " << predicates[predicateindex] << " #############"  << std::endl;
-              trun avgtime = run_for_one_predicate(num_columns,num_row_groups,parquet_reader,col_id,predicates,predicateindex,-1);
+              trun avgtime = run_for_one_predicate(num_columns,num_row_groups,parquet_reader,col_id,predicates,predicateindex,-1,true);
               times_by_type[col_id].wo_index += avgtime.wo_totaltime;
               times_by_type[col_id].w_index += avgtime.w_totaltime;
+              times_by_type[col_id].b_index += avgtime.b_totaltime;
+              times_by_type[col_id].wo_total_pages_scanned += avgtime.wo_total_pages_scanned;
+              times_by_type[col_id].w_total_pages_scanned += avgtime.w_total_pages_scanned;
+              times_by_type[col_id].b_total_pages_scanned += avgtime.b_total_pages_scanned;
               convertToCharptr(predicate+20,predicate_val,intlog(num_rows));
               predicates[predicateindex] = predicate_val;
               runfile << "#############" << " col_num " << col_id << " run number "<< i << " Query number " << predicateindex << " predicate: " << predicates[predicateindex] << " #############"  << std::endl;
-              avgtime = run_for_one_predicate(num_columns,num_row_groups,parquet_reader,col_id,predicates,predicateindex,1);
+              avgtime = run_for_one_predicate(num_columns,num_row_groups,parquet_reader,col_id,predicates,predicateindex,1,true);
               times_by_type[col_id].wo_index += avgtime.wo_totaltime;
               times_by_type[col_id].w_index += avgtime.w_totaltime;
-
+              times_by_type[col_id].b_index += avgtime.b_totaltime;
+              times_by_type[col_id].wo_total_pages_scanned += avgtime.wo_total_pages_scanned;
+              times_by_type[col_id].w_total_pages_scanned += avgtime.w_total_pages_scanned;
+              times_by_type[col_id].b_total_pages_scanned += avgtime.b_total_pages_scanned;
               predicateindex++;
             }
           }
         }
         for (int col_id = 0; col_id < num_columns; col_id++ ) {
           runfile<< "col_num " << col_id << std::endl;
-          runfile << std::setprecision(3)  << "RANGE QUERY: minimum average time w/o index" << (times_by_type[col_id].wo_index/(num_runs*num_queries)) << std::endl;
-          runfile << std::setprecision(3)  << "RANGE QUERY: minimum average time w index" << (times_by_type[col_id].w_index/(num_runs*num_queries)) << std::endl;
+          runfile << std::setprecision(3)  << "RANGE QUERY: minimum average time w/o index " 
+          << (times_by_type[col_id].wo_index/(num_runs*num_queries)) << "avg num of page scanned " << (times_by_type[col_id].wo_total_pages_scanned/(num_runs*num_queries)) << std::endl;
+          runfile << std::setprecision(3)  << "RANGE QUERY: minimum average time w index " 
+          << (times_by_type[col_id].w_index/(num_runs*num_queries)) << "avg num of page scanned " << (times_by_type[col_id].w_total_pages_scanned/(num_runs*num_queries)) << std::endl;
+          runfile << std::setprecision(3)  <<"POINT QUERY: minimum average time w index without binary " 
+          << (times_by_type[col_id].b_index/(num_runs*num_queries)) << "avg num of page scanned " << (times_by_type[col_id].b_total_pages_scanned/(num_runs*num_queries)) << std::endl;
         }
        runfile << "###############################################################" << std::endl;
        runfile << "#################### RUNNING Full Scan QUERIES ####################" << std::endl; 
@@ -256,9 +286,13 @@ int parquet_reader(int argc,char** argv) {
               convertToCharptr(predicate,predicate_val,intlog(num_rows));
               predicates[predicateindex] = predicate_val;
               runfile << "#############" << " col_num " << col_id << " run number "<< i << " Query number " << predicateindex << " predicate: " << predicates[predicateindex] << " #############"  << std::endl;
-              trun avgtime = run_for_one_predicate(num_columns,num_row_groups,parquet_reader,col_id,predicates,predicateindex,-1);
+              trun avgtime = run_for_one_predicate(num_columns,num_row_groups,parquet_reader,col_id,predicates,predicateindex,-1,true);
               times_by_type[col_id].wo_index += avgtime.wo_totaltime;
               times_by_type[col_id].w_index += avgtime.w_totaltime;
+              times_by_type[col_id].b_index += avgtime.b_totaltime;
+              times_by_type[col_id].wo_total_pages_scanned += avgtime.wo_total_pages_scanned;
+              times_by_type[col_id].w_total_pages_scanned += avgtime.w_total_pages_scanned;
+              times_by_type[col_id].b_total_pages_scanned += avgtime.b_total_pages_scanned;
               convertToCharptr(predicate+20,predicate_val,intlog(num_rows));
 
               predicateindex++;
@@ -267,8 +301,12 @@ int parquet_reader(int argc,char** argv) {
         }
         for (int col_id = 0; col_id < num_columns; col_id++ ) {
           runfile<< "col_num " << col_id << std::endl;
-          runfile << std::setprecision(3)  << "FULL SCAN QUERY: minimum average time w/o index" << (times_by_type[col_id].wo_index/(num_runs*num_queries)) << std::endl;
-          runfile << std::setprecision(3)  << "FULL SCAN QUERY: minimum average time w index" << (times_by_type[col_id].w_index/(num_runs*num_queries)) << std::endl;
+          runfile << std::setprecision(3)  << "FULL SCAN QUERY: minimum average time w/o index " 
+          << (times_by_type[col_id].wo_index/(num_runs*num_queries)) << "avg num of page scanned " << (times_by_type[col_id].wo_total_pages_scanned/(num_runs*num_queries)) << std::endl;
+          runfile << std::setprecision(3)  << "FULL SCAN QUERY: minimum average time w index " 
+          << (times_by_type[col_id].w_index/(num_runs*num_queries)) << "avg num of page scanned " << (times_by_type[col_id].w_total_pages_scanned/(num_runs*num_queries)) << std::endl;
+          runfile << std::setprecision(3)  << "FULL SCAN QUERY: minimum average time w index without binary search " 
+          << (times_by_type[col_id].b_index/(num_runs*num_queries)) << "avg num of page scanned " << (times_by_type[col_id].b_total_pages_scanned/(num_runs*num_queries)) << std::endl;
         }
         runfile << "###############################################################" << std::endl;
         runfile.close();
@@ -279,7 +317,7 @@ int parquet_reader(int argc,char** argv) {
        std::stringstream ss(col_num);
        int colid;
        ss >> colid;
-        run_for_one_predicate(num_columns,num_row_groups,parquet_reader,colid,argv,3,0);
+        run_for_one_predicate(num_columns,num_row_groups,parquet_reader,colid,argv,3,0,true);
      }
 
      if ( argc == 5 ){
@@ -287,8 +325,8 @@ int parquet_reader(int argc,char** argv) {
        std::stringstream ss(col_num);
        int colid;
        ss >> colid;
-       run_for_one_predicate(num_columns,num_row_groups,parquet_reader,colid,argv,3,1);
-       run_for_one_predicate(num_columns,num_row_groups,parquet_reader,colid,argv,4,-1);
+       run_for_one_predicate(num_columns,num_row_groups,parquet_reader,colid,argv,3,1,true);
+       run_for_one_predicate(num_columns,num_row_groups,parquet_reader,colid,argv,4,-1,true);
      }
 
      return 0;
@@ -300,7 +338,7 @@ int parquet_reader(int argc,char** argv) {
 }
 
 trun run_for_one_predicate(int num_columns,int num_row_groups, std::unique_ptr<parquet::ParquetFileReader>& parquet_reader, int colid,char** argv,int predicate_index, 
-                           int equal_to = 0) {
+                           int equal_to = 0, bool binary_search=true) {
 
     
     trun avgtime;
@@ -318,12 +356,12 @@ trun run_for_one_predicate(int num_columns,int num_row_groups, std::unique_ptr<p
         float total_time= 0.0;
         int num_runs = 5;
          
-        
+        float total_pages_scanned = 0.0;
         /********FIRST PASS WITHOUT INDEX***************/
         total_time = 0.0;
         for(int t  =0 ; t< num_runs; t++){
             gettimeofday(&start_time,NULL);
-          first_pass_for_predicate_only(row_group_reader,col_id,num_columns,predicate_val,false,equal_to);
+          total_pages_scanned += first_pass_for_predicate_only(row_group_reader,col_id,num_columns,predicate_val,false,equal_to,binary_search);
           gettimeofday(&end_time,NULL);
           
             float time_elapsed = ((float)(end_time.tv_sec-start_time.tv_sec) + abs((float)(end_time.tv_usec - start_time.tv_usec))/1000000.0);
@@ -335,14 +373,17 @@ trun run_for_one_predicate(int num_columns,int num_row_groups, std::unique_ptr<p
         //std::cout << std::setprecision(3)  << "total time " << total_time << std::endl;
         //float avg_time = (float)total_time/(float)num_runs;
         //std::cout << std::setprecision(3) <<  "\n avg time for predicate one pass without index: " <<  avg_time << " sec for " << num_runs << " runs" << std::endl;
+        avgtime.wo_total_pages_scanned = total_pages_scanned/num_runs;
         avgtime.wo_totaltime = total_time;
         //std::cout << std::setprecision(3)  << " in struct total time " << avgtime.wo_totaltime << std::endl;
         //avgtime.wo_index = total_time; 
        /**************FIRST PASS WITH INDEX*****************/
        total_time = 0.0;
+       
+       total_pages_scanned = 0.0;
         for(int t  =0 ; t< num_runs; t++){
             gettimeofday(&start_time,NULL);
-          first_pass_for_predicate_only(row_group_reader,col_id,num_columns,predicate_val,true,equal_to);
+          first_pass_for_predicate_only(row_group_reader,col_id,num_columns,predicate_val,true,equal_to,binary_search);
           gettimeofday(&end_time,NULL);
           
             float time_elapsed = ((float)(end_time.tv_sec-start_time.tv_sec) + abs((float)(end_time.tv_usec - start_time.tv_usec))/1000000.0);
@@ -354,7 +395,29 @@ trun run_for_one_predicate(int num_columns,int num_row_groups, std::unique_ptr<p
         //std::cout << std::setprecision(3)  << "total time " << total_time << std::endl;
         //avg_time = (float)total_time/(float)num_runs;
         //std::cout << std::setprecision(3) <<  "\n avg time for predicate one pass: " <<  avg_time << " sec for " << num_runs << " runs" << std::endl;
+        avgtime.w_total_pages_scanned = total_pages_scanned/num_runs;
         avgtime.w_totaltime = total_time;
+        //std::cout << std::setprecision(3)  << " in struct total time " << avgtime.w_totaltime << std::endl;
+        //avgtime.w_index = total_time;
+
+        total_time = 0.0;
+        total_pages_scanned = 0.0;
+        for(int t  =0 ; t< num_runs; t++){
+            gettimeofday(&start_time,NULL);
+          first_pass_for_predicate_only(row_group_reader,col_id,num_columns,predicate_val,true,equal_to,!binary_search);
+          gettimeofday(&end_time,NULL);
+          
+            float time_elapsed = ((float)(end_time.tv_sec-start_time.tv_sec) + abs((float)(end_time.tv_usec - start_time.tv_usec))/1000000.0);
+
+            std::cout << std::setprecision(3) << "\n time for predicate one pass without binary search: " << time_elapsed << std::endl;
+
+            total_time = (t!=0 && time_elapsed > total_time)? total_time:time_elapsed;
+        }
+        //std::cout << std::setprecision(3)  << "total time " << total_time << std::endl;
+        //avg_time = (float)total_time/(float)num_runs;
+        //std::cout << std::setprecision(3) <<  "\n avg time for predicate one pass: " <<  avg_time << " sec for " << num_runs << " runs" << std::endl;
+        avgtime.b_total_pages_scanned = total_pages_scanned/num_runs;
+        avgtime.b_totaltime = total_time;
         //std::cout << std::setprecision(3)  << " in struct total time " << avgtime.w_totaltime << std::endl;
         //avgtime.w_index = total_time;
       /***********FIRST PASS END **********/
@@ -369,10 +432,11 @@ trun run_for_one_predicate(int num_columns,int num_row_groups, std::unique_ptr<p
 }
 
 
-void first_pass_for_predicate_only(std::shared_ptr<parquet::RowGroupReader> row_group_reader,int col_id, int num_columns, char* predicate_val,bool with_index,
-                                   int equal_to = 0) {
+int64_t first_pass_for_predicate_only(std::shared_ptr<parquet::RowGroupReader> row_group_reader,int col_id, int num_columns, char* predicate_val,bool with_index,
+                                   int equal_to = 0, bool binary_search=true) {
 
     int64_t row_index = 0;
+    int64_t count_pages_scanned = 0;
 
     std::vector<int> col_row_counts(num_columns, 0);
 
@@ -406,15 +470,13 @@ void first_pass_for_predicate_only(std::shared_ptr<parquet::RowGroupReader> row_
       parquet::ColumnReader* generic_reader;
   
       int PREDICATE_COL  = col_id;
-      return_multiple vals = getPredicate(predicate_column_reader,row_group_reader,predicate_val,col_id,page_index,PREDICATE_COL,row_index,with_index);
+      return_multiple vals = getPredicate(predicate_column_reader,row_group_reader,predicate_val,col_id,page_index,PREDICATE_COL,row_index,with_index,binary_search, count_pages_scanned);
       column_reader_with_index = vals.column_reader;
       
       //SAMPLE row group reader call in the comment below
       // row_group_reader->ColumnWithIndex(col_id,predicate,page_index,PREDICATE_COL,row_index,predicate_column_reader->type());
 
       returnReaderwithType(column_reader_with_index,generic_reader);
-      // Read all the rows in the column
-      std::cout << "column id:" << col_id << " page index:" << page_index << std::endl;
 
       int counter = 0;
       int ind = 0;
@@ -432,7 +494,7 @@ void first_pass_for_predicate_only(std::shared_ptr<parquet::RowGroupReader> row_
       else{
         while (generic_reader->HasNext()) { 
             ind++;
-
+            count_pages_scanned++;
           if(printVal(column_reader_with_index,generic_reader,ind,vals,row_counter,true,equal_to))
              break;
           //        int64_t expected_value = col_row_counts[col_id];  
@@ -440,12 +502,16 @@ void first_pass_for_predicate_only(std::shared_ptr<parquet::RowGroupReader> row_
          col_row_counts[col_id]++;
         } 
       }
+
+      // Read all the rows in the column
+      std::cout << "column id:" << col_id << " page index:" << page_index << "number of pages scanned: " << count_pages_scanned << std::endl;
         
-      
+      return count_pages_scanned;
 }
 
 return_multiple getPredicate(std::shared_ptr<parquet::ColumnReader> cr,std::shared_ptr<parquet::RowGroupReader> rg,char* predicate_val,
-                             int& col_id,int64_t& page_index,int& PREDICATE_COL,int64_t& row_index, bool with_index){
+                             int& col_id,int64_t& page_index,int& PREDICATE_COL,int64_t& row_index, bool with_index, 
+                             bool binary_search, int64_t& count_pages_scanned){
     const int CHAR_LEN = 10000000;
     
     return_multiple vals;
@@ -458,7 +524,7 @@ return_multiple getPredicate(std::shared_ptr<parquet::ColumnReader> cr,std::shar
             void * predicate = static_cast<void*>(&b);
 
             vals.column_reader = (with_index)?
-                      rg->ColumnWithIndex(col_id,predicate,page_index,PREDICATE_COL,row_index,cr->type()):
+                      rg->ColumnWithIndex(col_id,predicate,page_index,PREDICATE_COL,row_index,cr->type(),binary_search, count_pages_scanned):
                       rg->Column(col_id);
             vals.b = b;
             return vals;
@@ -469,7 +535,7 @@ return_multiple getPredicate(std::shared_ptr<parquet::ColumnReader> cr,std::shar
             ss >> val;
             void * predicate = static_cast<void*>(&val);
             vals.column_reader = (with_index)?
-                      rg->ColumnWithIndex(col_id,predicate,page_index,PREDICATE_COL,row_index,cr->type()):
+                      rg->ColumnWithIndex(col_id,predicate,page_index,PREDICATE_COL,row_index,cr->type(),binary_search, count_pages_scanned):
                       rg->Column(col_id);
             vals.p = val;
             return vals;
@@ -480,7 +546,7 @@ return_multiple getPredicate(std::shared_ptr<parquet::ColumnReader> cr,std::shar
             ss >> val;
             void * predicate = static_cast<void*>(&val);
             vals.column_reader = (with_index)?
-                      rg->ColumnWithIndex(col_id,predicate,page_index,PREDICATE_COL,row_index,cr->type()):
+                      rg->ColumnWithIndex(col_id,predicate,page_index,PREDICATE_COL,row_index,cr->type(),binary_search, count_pages_scanned):
                       rg->Column(col_id);
             vals.r = val;
             return vals;
@@ -491,7 +557,7 @@ return_multiple getPredicate(std::shared_ptr<parquet::ColumnReader> cr,std::shar
             ss >> val;
             void * predicate = static_cast<void*>(&val);
             vals.column_reader = (with_index)?
-                      rg->ColumnWithIndex(col_id,predicate,page_index,PREDICATE_COL,row_index,cr->type()):
+                      rg->ColumnWithIndex(col_id,predicate,page_index,PREDICATE_COL,row_index,cr->type(),binary_search, count_pages_scanned):
                       rg->Column(col_id);
             vals.e = val;
             return vals;
@@ -502,7 +568,7 @@ return_multiple getPredicate(std::shared_ptr<parquet::ColumnReader> cr,std::shar
             ss >> val;
             void * predicate = static_cast<void*>(&val);
             vals.column_reader = (with_index)?
-                      rg->ColumnWithIndex(col_id,predicate,page_index,PREDICATE_COL,row_index,cr->type()):
+                      rg->ColumnWithIndex(col_id,predicate,page_index,PREDICATE_COL,row_index,cr->type(),binary_search, count_pages_scanned):
                       rg->Column(col_id);
             vals.d = val;
             return vals;
@@ -513,7 +579,7 @@ return_multiple getPredicate(std::shared_ptr<parquet::ColumnReader> cr,std::shar
             ss >> val;
             void * predicate = static_cast<void*>(&val);
             vals.column_reader = (with_index)?
-                      rg->ColumnWithIndex(col_id,predicate,page_index,PREDICATE_COL,row_index,cr->type()):
+                      rg->ColumnWithIndex(col_id,predicate,page_index,PREDICATE_COL,row_index,cr->type(),binary_search, count_pages_scanned):
                       rg->Column(col_id);
             vals.i = val;
             return vals;
@@ -523,7 +589,7 @@ return_multiple getPredicate(std::shared_ptr<parquet::ColumnReader> cr,std::shar
             
             void * predicate = static_cast<void*>(val);
             vals.column_reader = (with_index)?
-                      rg->ColumnWithIndex(col_id,predicate,page_index,PREDICATE_COL,row_index,cr->type()):
+                      rg->ColumnWithIndex(col_id,predicate,page_index,PREDICATE_COL,row_index,cr->type(),binary_search, count_pages_scanned):
                       rg->Column(col_id);
             vals.c = val;
             return vals;
@@ -533,7 +599,7 @@ return_multiple getPredicate(std::shared_ptr<parquet::ColumnReader> cr,std::shar
             
             void * predicate = static_cast<void*>(val);
             vals.column_reader = (with_index)?
-                      rg->ColumnWithIndex(col_id,predicate,page_index,PREDICATE_COL,row_index,cr->type()):
+                      rg->ColumnWithIndex(col_id,predicate,page_index,PREDICATE_COL,row_index,cr->type(),binary_search, count_pages_scanned):
                       rg->Column(col_id);
             vals.a = val;
             return vals;
