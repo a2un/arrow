@@ -218,11 +218,11 @@ int parquet_reader(int argc,char** argv) {
         for (int col_id = 0; col_id < num_columns; col_id++ ) {
           runfile<< "col_num " << col_id << std::endl;
           runfile << std::setprecision(3)  <<"POINT QUERY: minimum average time w/o index " 
-          << (times_by_type[col_id].wo_totaltime/(num_runs*num_queries)) << "avg num of page scanned " << (times_by_type[col_id].wo_total_pages_scanned/(num_runs*num_queries)) << std::endl;
+          << (times_by_type[col_id].wo_totaltime/(num_runs*num_queries)) << "avg num of datapage indices scanned " << (times_by_type[col_id].wo_total_pages_scanned/(num_runs*num_queries)) << std::endl;
           runfile << std::setprecision(3)  <<"POINT QUERY: minimum average time w index " 
-          << (times_by_type[col_id].w_totaltime/(num_runs*num_queries)) << "avg num of page scanned " << (times_by_type[col_id].w_total_pages_scanned/(num_runs*num_queries)) << std::endl;
+          << (times_by_type[col_id].w_totaltime/(num_runs*num_queries)) << "avg num of datapage indices scanned " << (times_by_type[col_id].w_total_pages_scanned/(num_runs*num_queries)) << std::endl;
           runfile << std::setprecision(3)  <<"POINT QUERY: minimum average time w index without binary " 
-          << (times_by_type[col_id].b_totaltime/(num_runs*num_queries)) << "avg num of page scanned " << (times_by_type[col_id].b_total_pages_scanned/(num_runs*num_queries)) << std::endl;
+          << (times_by_type[col_id].b_totaltime/(num_runs*num_queries)) << "avg num of datapage indices scanned " << (times_by_type[col_id].b_total_pages_scanned/(num_runs*num_queries)) << std::endl;
         }
         runfile << "###############################################################" << std::endl;
         runfile << "#################### RUNNING RANGE QUERIES ####################" << std::endl; 
@@ -265,11 +265,11 @@ int parquet_reader(int argc,char** argv) {
         for (int col_id = 0; col_id < num_columns; col_id++ ) {
           runfile<< "col_num " << col_id << std::endl;
           runfile << std::setprecision(3)  << "RANGE QUERY: minimum average time w/o index " 
-          << (times_by_type[col_id].wo_index/(num_runs*num_queries)) << "avg num of page scanned " << (times_by_type[col_id].wo_total_pages_scanned/(num_runs*num_queries)) << std::endl;
+          << (times_by_type[col_id].wo_index/(num_runs*num_queries)) << "avg num of datapage indices scanned " << (times_by_type[col_id].wo_total_pages_scanned/(num_runs*num_queries)) << std::endl;
           runfile << std::setprecision(3)  << "RANGE QUERY: minimum average time w index " 
-          << (times_by_type[col_id].w_index/(num_runs*num_queries)) << "avg num of page scanned " << (times_by_type[col_id].w_total_pages_scanned/(num_runs*num_queries)) << std::endl;
+          << (times_by_type[col_id].w_index/(num_runs*num_queries)) << "avg num of datapage indices scanned " << (times_by_type[col_id].w_total_pages_scanned/(num_runs*num_queries)) << std::endl;
           runfile << std::setprecision(3)  <<"POINT QUERY: minimum average time w index without binary " 
-          << (times_by_type[col_id].b_index/(num_runs*num_queries)) << "avg num of page scanned " << (times_by_type[col_id].b_total_pages_scanned/(num_runs*num_queries)) << std::endl;
+          << (times_by_type[col_id].b_index/(num_runs*num_queries)) << "avg num of datapage indices scanned " << (times_by_type[col_id].b_total_pages_scanned/(num_runs*num_queries)) << std::endl;
         }
        runfile << "###############################################################" << std::endl;
        runfile << "#################### RUNNING Full Scan QUERIES ####################" << std::endl; 
@@ -302,11 +302,11 @@ int parquet_reader(int argc,char** argv) {
         for (int col_id = 0; col_id < num_columns; col_id++ ) {
           runfile<< "col_num " << col_id << std::endl;
           runfile << std::setprecision(3)  << "FULL SCAN QUERY: minimum average time w/o index " 
-          << (times_by_type[col_id].wo_index/(num_runs*num_queries)) << "avg num of page scanned " << (times_by_type[col_id].wo_total_pages_scanned/(num_runs*num_queries)) << std::endl;
+          << (times_by_type[col_id].wo_index/(num_runs*num_queries)) << "avg num of datapage indices scanned " << (times_by_type[col_id].wo_total_pages_scanned/(num_runs*num_queries)) << std::endl;
           runfile << std::setprecision(3)  << "FULL SCAN QUERY: minimum average time w index " 
-          << (times_by_type[col_id].w_index/(num_runs*num_queries)) << "avg num of page scanned " << (times_by_type[col_id].w_total_pages_scanned/(num_runs*num_queries)) << std::endl;
+          << (times_by_type[col_id].w_index/(num_runs*num_queries)) << "avg num of datapage indices scanned " << (times_by_type[col_id].w_total_pages_scanned/(num_runs*num_queries)) << std::endl;
           runfile << std::setprecision(3)  << "FULL SCAN QUERY: minimum average time w index without binary search " 
-          << (times_by_type[col_id].b_index/(num_runs*num_queries)) << "avg num of page scanned " << (times_by_type[col_id].b_total_pages_scanned/(num_runs*num_queries)) << std::endl;
+          << (times_by_type[col_id].b_index/(num_runs*num_queries)) << "avg num of datapage indices scanned " << (times_by_type[col_id].b_total_pages_scanned/(num_runs*num_queries)) << std::endl;
         }
         runfile << "###############################################################" << std::endl;
         runfile.close();
@@ -504,7 +504,7 @@ int64_t first_pass_for_predicate_only(std::shared_ptr<parquet::RowGroupReader> r
       }
 
       // Read all the rows in the column
-      std::cout << "column id:" << col_id << " page index:" << page_index << "number of pages scanned: " << count_pages_scanned << std::endl;
+      std::cout << "column id:" << col_id << " page index:" << page_index << "number of column indices scanned: " << count_pages_scanned << std::endl;
         
       return count_pages_scanned;
 }
