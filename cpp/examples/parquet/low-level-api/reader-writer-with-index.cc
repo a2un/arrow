@@ -93,7 +93,7 @@ void returnReaderwithType(std::shared_ptr<parquet::ColumnReader> cr, parquet::Co
 
 return_multiple getPredicate(std::shared_ptr<parquet::ColumnReader> cr,std::shared_ptr<parquet::RowGroupReader> rg,char* predicate,
                              int& col_id,int64_t& page_index,int& PREDICATE_COL,int64_t& row_index,bool with_index, 
-                             bool binary_search, int64_t& count_pages_scanned);
+                             bool binary_search, int64_t& count_pages_scanned, int64_t& total_num_pages, int64_t& last_first_row);
 
 bool printVal(std::shared_ptr<parquet::ColumnReader>column_reader, parquet::ColumnReader* int64_reader,int ind,return_multiple vals,int64_t& row_counter,
                bool checkpredicate,int equal_to);
@@ -338,7 +338,7 @@ int parquet_reader(int argc,char** argv) {
 }
 
 trun run_for_one_predicate(int num_columns,int num_row_groups, std::unique_ptr<parquet::ParquetFileReader>& parquet_reader, int colid,char** argv,int predicate_index, 
-                           int equal_to = 0, bool binary_search=true) {
+                           int equal_to, bool binary_search) {
 
     
     trun avgtime;
@@ -433,10 +433,10 @@ trun run_for_one_predicate(int num_columns,int num_row_groups, std::unique_ptr<p
 
 
 int64_t first_pass_for_predicate_only(std::shared_ptr<parquet::RowGroupReader> row_group_reader,int col_id, int num_columns, char* predicate_val,bool with_index,
-                                   int equal_to = 0, bool binary_search=true) {
+                                   int equal_to, bool binary_search) {
 
     int64_t row_index = 0;
-    int64_t count_pages_scanned = 0;
+    int64_t count_pages_scanned = 0, total_num_pages = 0, last_first_row = 0;
 
     std::vector<int> col_row_counts(num_columns, 0);
 
@@ -461,7 +461,6 @@ int64_t first_pass_for_predicate_only(std::shared_ptr<parquet::RowGroupReader> r
       std::shared_ptr<parquet::ColumnReader> predicate_column_reader = row_group_reader->Column(col_id);
       
       
-      std::cout << "Column Type: " << predicate_column_reader->type() << std::endl;
       
       // std::cout << "given predicate: " << predicate << " type of predicate: " << typeid(predicate).name() << std::endl;
       
@@ -470,7 +469,8 @@ int64_t first_pass_for_predicate_only(std::shared_ptr<parquet::RowGroupReader> r
       parquet::ColumnReader* generic_reader;
   
       int PREDICATE_COL  = col_id;
-      return_multiple vals = getPredicate(predicate_column_reader,row_group_reader,predicate_val,col_id,page_index,PREDICATE_COL,row_index,with_index,binary_search, count_pages_scanned);
+      return_multiple vals = getPredicate(predicate_column_reader,row_group_reader,predicate_val,col_id,page_index,PREDICATE_COL,row_index,with_index,binary_search, count_pages_scanned,
+                                            total_num_pages, last_first_row);
       column_reader_with_index = vals.column_reader;
       
       //SAMPLE row group reader call in the comment below
@@ -480,11 +480,11 @@ int64_t first_pass_for_predicate_only(std::shared_ptr<parquet::RowGroupReader> r
 
       int counter = 0;
       int ind = 0;
-      int64_t row_counter = -1;
+      int64_t row_counter = 0;
 
       if(with_index){
         ind = row_index;
-        row_counter = -1;
+        row_counter = 0;
         generic_reader->Skip(row_index);
         do{ ind++;
          if((printVal(column_reader_with_index,generic_reader,ind,vals,row_counter,true,equal_to)))
@@ -504,14 +504,17 @@ int64_t first_pass_for_predicate_only(std::shared_ptr<parquet::RowGroupReader> r
       }
 
       // Read all the rows in the column
-      std::cout << "column id:" << col_id << " page index:" << page_index << "number of column indices scanned: " << count_pages_scanned << std::endl;
+      std::cout << "Column Type: " << predicate_column_reader->type() << std::endl;
+      std::cout << "column id:" << col_id << " page index:" << page_index << "number of column indices scanned: " << count_pages_scanned <<
+      "total number of pages: " << ((total_num_pages!=0)?total_num_pages:ind) << "last page first row index: " << last_first_row << std::endl;
         
       return count_pages_scanned;
 }
 
 return_multiple getPredicate(std::shared_ptr<parquet::ColumnReader> cr,std::shared_ptr<parquet::RowGroupReader> rg,char* predicate_val,
                              int& col_id,int64_t& page_index,int& PREDICATE_COL,int64_t& row_index, bool with_index, 
-                             bool binary_search, int64_t& count_pages_scanned){
+                             bool binary_search, int64_t& count_pages_scanned,
+                                            int64_t& total_num_pages, int64_t& last_first_row){
     const int CHAR_LEN = 10000000;
     
     return_multiple vals;
@@ -524,7 +527,8 @@ return_multiple getPredicate(std::shared_ptr<parquet::ColumnReader> cr,std::shar
             void * predicate = static_cast<void*>(&b);
 
             vals.column_reader = (with_index)?
-                      rg->ColumnWithIndex(col_id,predicate,page_index,PREDICATE_COL,row_index,cr->type(),binary_search, count_pages_scanned):
+                      rg->ColumnWithIndex(col_id,predicate,page_index,PREDICATE_COL,row_index,cr->type(),binary_search, count_pages_scanned,
+                                            total_num_pages, last_first_row):
                       rg->Column(col_id);
             vals.b = b;
             return vals;
@@ -535,7 +539,8 @@ return_multiple getPredicate(std::shared_ptr<parquet::ColumnReader> cr,std::shar
             ss >> val;
             void * predicate = static_cast<void*>(&val);
             vals.column_reader = (with_index)?
-                      rg->ColumnWithIndex(col_id,predicate,page_index,PREDICATE_COL,row_index,cr->type(),binary_search, count_pages_scanned):
+                      rg->ColumnWithIndex(col_id,predicate,page_index,PREDICATE_COL,row_index,cr->type(),binary_search, count_pages_scanned,
+                                            total_num_pages, last_first_row):
                       rg->Column(col_id);
             vals.p = val;
             return vals;
@@ -546,7 +551,8 @@ return_multiple getPredicate(std::shared_ptr<parquet::ColumnReader> cr,std::shar
             ss >> val;
             void * predicate = static_cast<void*>(&val);
             vals.column_reader = (with_index)?
-                      rg->ColumnWithIndex(col_id,predicate,page_index,PREDICATE_COL,row_index,cr->type(),binary_search, count_pages_scanned):
+                      rg->ColumnWithIndex(col_id,predicate,page_index,PREDICATE_COL,row_index,cr->type(),binary_search, count_pages_scanned,
+                                            total_num_pages, last_first_row):
                       rg->Column(col_id);
             vals.r = val;
             return vals;
@@ -557,7 +563,8 @@ return_multiple getPredicate(std::shared_ptr<parquet::ColumnReader> cr,std::shar
             ss >> val;
             void * predicate = static_cast<void*>(&val);
             vals.column_reader = (with_index)?
-                      rg->ColumnWithIndex(col_id,predicate,page_index,PREDICATE_COL,row_index,cr->type(),binary_search, count_pages_scanned):
+                      rg->ColumnWithIndex(col_id,predicate,page_index,PREDICATE_COL,row_index,cr->type(),binary_search, count_pages_scanned,
+                                            total_num_pages, last_first_row):
                       rg->Column(col_id);
             vals.e = val;
             return vals;
@@ -568,7 +575,8 @@ return_multiple getPredicate(std::shared_ptr<parquet::ColumnReader> cr,std::shar
             ss >> val;
             void * predicate = static_cast<void*>(&val);
             vals.column_reader = (with_index)?
-                      rg->ColumnWithIndex(col_id,predicate,page_index,PREDICATE_COL,row_index,cr->type(),binary_search, count_pages_scanned):
+                      rg->ColumnWithIndex(col_id,predicate,page_index,PREDICATE_COL,row_index,cr->type(),binary_search, count_pages_scanned,
+                                            total_num_pages, last_first_row):
                       rg->Column(col_id);
             vals.d = val;
             return vals;
@@ -579,7 +587,8 @@ return_multiple getPredicate(std::shared_ptr<parquet::ColumnReader> cr,std::shar
             ss >> val;
             void * predicate = static_cast<void*>(&val);
             vals.column_reader = (with_index)?
-                      rg->ColumnWithIndex(col_id,predicate,page_index,PREDICATE_COL,row_index,cr->type(),binary_search, count_pages_scanned):
+                      rg->ColumnWithIndex(col_id,predicate,page_index,PREDICATE_COL,row_index,cr->type(),binary_search, count_pages_scanned,
+                                            total_num_pages, last_first_row):
                       rg->Column(col_id);
             vals.i = val;
             return vals;
@@ -589,7 +598,8 @@ return_multiple getPredicate(std::shared_ptr<parquet::ColumnReader> cr,std::shar
             
             void * predicate = static_cast<void*>(val);
             vals.column_reader = (with_index)?
-                      rg->ColumnWithIndex(col_id,predicate,page_index,PREDICATE_COL,row_index,cr->type(),binary_search, count_pages_scanned):
+                      rg->ColumnWithIndex(col_id,predicate,page_index,PREDICATE_COL,row_index,cr->type(),binary_search, count_pages_scanned,
+                                            total_num_pages, last_first_row):
                       rg->Column(col_id);
             vals.c = val;
             return vals;
@@ -599,7 +609,8 @@ return_multiple getPredicate(std::shared_ptr<parquet::ColumnReader> cr,std::shar
             
             void * predicate = static_cast<void*>(val);
             vals.column_reader = (with_index)?
-                      rg->ColumnWithIndex(col_id,predicate,page_index,PREDICATE_COL,row_index,cr->type(),binary_search, count_pages_scanned):
+                      rg->ColumnWithIndex(col_id,predicate,page_index,PREDICATE_COL,row_index,cr->type(),binary_search, count_pages_scanned,
+                                            total_num_pages, last_first_row):
                       rg->Column(col_id);
             vals.a = val;
             return vals;

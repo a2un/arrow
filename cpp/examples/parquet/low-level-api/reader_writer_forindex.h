@@ -61,7 +61,7 @@ static std::shared_ptr<GroupNode> SetupSchema() {
   
   // Create a primitive node named 'int32_field' with type:INT32, repetition:REQUIRED,
   // logical type:TIME_MILLIS
-  /*fields.push_back(PrimitiveNode::Make("int32_field2", Repetition::REQUIRED, Type::INT32,
+  fields.push_back(PrimitiveNode::Make("int32_field2", Repetition::REQUIRED, Type::INT32,
                                        ConvertedType::NONE));
 
   // Create a primitive node named 'int64_field' with type:INT64, repetition:REPEATED
@@ -123,7 +123,7 @@ static std::shared_ptr<GroupNode> SetupSchema() {
 
   // Create a primitive node named 'ba_field' with type:BYTE_ARRAY, repetition:OPTIONAL
   fields.push_back(PrimitiveNode::Make("ba_field4", Repetition::OPTIONAL, Type::BYTE_ARRAY,
-                                       ConvertedType::NONE));*/
+                                       ConvertedType::NONE));
                                      
   // Create a primitive node named 'flba_field' with type:FIXED_LEN_BYTE_ARRAY,
   // repetition:REQUIRED, field_length = FIXED_LENGTH

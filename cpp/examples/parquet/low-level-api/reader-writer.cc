@@ -153,9 +153,9 @@ void writeparquet(int NUM_ROWS_PER_ROW_GROUP, char PARQUET_FILENAME[]) {
     // }
 
     writecols(NUM_ROWS_PER_ROW_GROUP,rg_writer,1,1,1.1f,1.1111111,100);
-    //writecols(NUM_ROWS_PER_ROW_GROUP,rg_writer,1,1,1.1f,1.1111111,100);
-    //writecols(NUM_ROWS_PER_ROW_GROUP,rg_writer,1,1,1.1f,1.1111111,100);
-    //writecols(NUM_ROWS_PER_ROW_GROUP,rg_writer,1,1,1.1f,1.1111111,100);
+    writecols(NUM_ROWS_PER_ROW_GROUP,rg_writer,1,1,1.1f,1.1111111,100);
+    writecols(NUM_ROWS_PER_ROW_GROUP,rg_writer,1,1,1.1f,1.1111111,100);
+    writecols(NUM_ROWS_PER_ROW_GROUP,rg_writer,1,1,1.1f,1.1111111,100);
     
 
     // Write the FixedLengthByteArray column
