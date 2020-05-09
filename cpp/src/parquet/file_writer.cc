@@ -51,6 +51,8 @@ void RowGroupWriter::Close() {
 
 ColumnWriter* RowGroupWriter::NextColumn() { return contents_->NextColumn(); }
 
+ColumnWriter* RowGroupWriter::NextColumnWithIndex(int64_t& current_page_row_set_index) { return contents_->NextColumnWithIndex(current_page_row_set_index); }
+
 ColumnWriter* RowGroupWriter::column(int i) { return contents_->column(i); }
 
 int64_t RowGroupWriter::total_compressed_bytes() const {
@@ -132,6 +134,41 @@ class RowGroupSerializer : public RowGroupWriter::Contents {
     return column_writers_[0].get();
   }
 
+  ColumnWriter* NextColumnWithIndex(int64_t& current_page_row_set_index) override {
+    use_index = true;
+    
+    if (buffered_row_group_) {
+      throw ParquetException(
+          "NextColumn() is not supported when a RowGroup is written by size");
+    }
+
+    if (column_writers_[0]) {
+      CheckRowsWritten();
+    }
+    
+    // Throws an error if more columns are being written
+    //get next column metadata
+    auto col_meta = metadata_->NextColumnChunkWithIndex();
+
+    if (column_writers_[0]) {                 //Current Column
+      total_bytes_written_ += column_writers_[0]->CloseWithIndex();
+      int64_t file_pos_;
+      sink_->Tell(&file_pos_);
+      column_writers_[0]->WriteIndex(file_pos_,column_index_offset,offset_index_offset);
+    }
+
+    ++next_column_index_;
+
+    // use next column descriptor, metadata to create next column's page writer
+    // use the next column's metadata, next column's page writer to create next column's writer
+    const ColumnDescriptor* column_descr = col_meta->descr();
+    std::unique_ptr<PageWriter> pager =
+        PageWriter::Open(sink_, properties_->compression(column_descr->path()), col_meta,
+                         properties_->memory_pool());
+    column_writers_[0] = ColumnWriter::Make(col_meta, std::move(pager), properties_); // next column
+    return column_writers_[0].get();
+  }
+
   ColumnWriter* column(int i) override {
     if (!buffered_row_group_) {
       throw ParquetException(
@@ -173,7 +210,7 @@ class RowGroupSerializer : public RowGroupWriter::Contents {
 
       for (size_t i = 0; i < column_writers_.size(); i++) {
         if (column_writers_[i]) {
-          total_bytes_written_ += column_writers_[i]->Close();
+          total_bytes_written_ += (use_index)? column_writers_[i]->Close(): column_writers_[i]->CloseWithIndex();
           column_writers_[i].reset();
         }
       }
@@ -195,6 +232,7 @@ class RowGroupSerializer : public RowGroupWriter::Contents {
   int next_column_index_;
   mutable int64_t num_rows_;
   bool buffered_row_group_;
+  bool use_index = false;
 
   void CheckRowsWritten() const {
     // verify when only one column is written at a time
@@ -231,6 +269,8 @@ class RowGroupSerializer : public RowGroupWriter::Contents {
   }
 
   std::vector<std::shared_ptr<ColumnWriter>> column_writers_;
+  int64_t column_index_offset = 0;
+  int64_t offset_index_offset = 0;
 };
 
 // ----------------------------------------------------------------------

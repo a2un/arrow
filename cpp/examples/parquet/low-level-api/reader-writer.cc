@@ -116,6 +116,85 @@ void writecols(int NUM_ROWS_PER_ROW_GROUP,parquet::RowGroupWriter*& rg_writer,in
     }
 }
 
+void writecolswithindex(int NUM_ROWS_PER_ROW_GROUP,parquet::RowGroupWriter*& rg_writer,int32_t int32factor,int64_t int64factor, float float_factor,double double_factor,int FIXED_LENGTH){
+    
+    int64_t current_page_row_set_index = 0;
+    // Write the Int32 column
+    parquet::Int32Writer* int32_writer =
+        static_cast<parquet::Int32Writer*>(rg_writer->NextColumnWithIndex(current_page_row_set_index));
+    for (int i = 0; i < NUM_ROWS_PER_ROW_GROUP; i++) {
+      int32_t value = i*int32factor;
+      int32_writer->WriteBatch(1, nullptr, nullptr, &value);
+    }
+    
+    current_page_row_set_index = 0;
+ 
+    // Write the Int64 column. Each row has not[repeats twice].
+    parquet::Int64Writer* int64_writer =
+        static_cast<parquet::Int64Writer*>(rg_writer->NextColumnWithIndex(current_page_row_set_index));
+    for (int i = 0; i < NUM_ROWS_PER_ROW_GROUP; i++) {
+      int64_t value = i*int64factor;
+      int64_writer->WriteBatch(1, nullptr,nullptr, &value);
+    }
+
+    // Write the INT96 column.
+/*    parquet::Int96Writer* int96_writer =
+        static_cast<parquet::Int96Writer*>(rg_writer->NextColumnWithIndex());
+    for (int i = 0; i < NUM_ROWS_PER_ROW_GROUP; i++) {
+      parquet::Int96 value;
+      value.value[0] = i;
+      value.value[1] = i + 1;
+      value.value[2] = i + 2;
+      int96_writer->WriteBatch(1, nullptr, nullptr, &value);
+    }
+*/
+    current_page_row_set_index = 0;
+    // Write the Float column
+    parquet::FloatWriter* float_writer =
+        static_cast<parquet::FloatWriter*>(rg_writer->NextColumnWithIndex(current_page_row_set_index));
+    for (int i = 0; i < NUM_ROWS_PER_ROW_GROUP; i++) {
+      float value = static_cast<float>(i) * float_factor;//1.1f;
+      float_writer->WriteBatch(1, nullptr, nullptr, &value);
+    }
+
+    current_page_row_set_index = 0;
+    // Write the Double column
+    parquet::DoubleWriter* double_writer =
+        static_cast<parquet::DoubleWriter*>(rg_writer->NextColumnWithIndex(current_page_row_set_index));
+    for (int i = 0; i < NUM_ROWS_PER_ROW_GROUP; i++) {
+      double value = i * double_factor;//1.1111111;
+      double_writer->WriteBatch(1, nullptr, nullptr, &value);
+    }
+
+    current_page_row_set_index = 0;
+    // Write the ByteArray column. Make every alternate values NULL
+    parquet::ByteArrayWriter* ba_writer =
+        static_cast<parquet::ByteArrayWriter*>(rg_writer->NextColumnWithIndex(current_page_row_set_index));
+    for (int i = 0; i < NUM_ROWS_PER_ROW_GROUP; i++) {
+      parquet::ByteArray value;
+      char hello[FIXED_LENGTH];// = "parquet";
+      int64_t startnumber = i*FIXED_LENGTH;
+      for ( int ci = 0; ci < FIXED_LENGTH; ci++ ) {
+          hello[FIXED_LENGTH-ci-1] = (startnumber%10) + 48;
+          startnumber /= 10;
+      }
+      
+      if (i % 2 == 0) {
+        int16_t definition_level = 1;
+        value.ptr = reinterpret_cast<const uint8_t*>(&hello[0]);
+        value.len = FIXED_LENGTH;
+        ba_writer->WriteBatch(1, &definition_level, nullptr, &value);
+      } else {
+        int16_t definition_level = 1;
+        value.ptr = reinterpret_cast<const uint8_t*>(&hello[0]);
+        value.len = FIXED_LENGTH;
+        ba_writer->WriteBatch(1, &definition_level, nullptr, &value);
+      }
+    }
+}
+
+
+
 void writeparquet(int NUM_ROWS_PER_ROW_GROUP, char PARQUET_FILENAME[]) {
   /**********************************************************************************
                              PARQUET WRITER EXAMPLE
@@ -152,10 +231,69 @@ void writeparquet(int NUM_ROWS_PER_ROW_GROUP, char PARQUET_FILENAME[]) {
     //   bool_writer->WriteBatch(1, nullptr, nullptr, &value);
     // }
 
-    writecols(NUM_ROWS_PER_ROW_GROUP,rg_writer,1,1,1.1f,1.1111111,100);
-    writecols(NUM_ROWS_PER_ROW_GROUP,rg_writer,1,1,1.1f,1.1111111,100);
-    writecols(NUM_ROWS_PER_ROW_GROUP,rg_writer,1,1,1.1f,1.1111111,100);
-    writecols(NUM_ROWS_PER_ROW_GROUP,rg_writer,1,1,1.1f,1.1111111,100);
+    writecols(NUM_ROWS_PER_ROW_GROUP,rg_writer,1,1,1.1f,1.1111111,124);
+    
+
+    // Write the FixedLengthByteArray column
+    /*parquet::FixedLenByteArrayWriter* flba_writer =
+        static_cast<parquet::FixedLenByteArrayWriter*>(rg_writer->NextColumn());
+    for (int i = 0; i < NUM_ROWS_PER_ROW_GROUP; i++) {
+      parquet::FixedLenByteArray value;
+      char v = static_cast<char>(i);
+      char flba[FIXED_LENGTH] = {v, v, v, v, v, v, v, v, v, v};
+      value.ptr = reinterpret_cast<const uint8_t*>(&flba[0]);
+
+      flba_writer->WriteBatch(1, nullptr, nullptr, &value);
+    }*/
+
+    // Close the ParquetFileWriter
+    file_writer->Close();
+
+    // Write the bytes to file
+    DCHECK(out_file->Close().ok());
+  } catch (const std::exception& e) {
+    std::cerr << "Parquet write error: " << e.what() << std::endl;
+    //return -1;
+  }
+}
+
+void writeparquetwithindex(int NUM_ROWS_PER_ROW_GROUP, char PARQUET_FILENAME[]) {
+  /**********************************************************************************
+                             PARQUET WRITER EXAMPLE
+  **********************************************************************************/
+  // parquet::REQUIRED fields do not need definition and repetition level values
+  // parquet::OPTIONAL fields require only definition level values
+  // parquet::REPEATED fields require both definition and repetition level values
+  try {
+    // Create a local file output stream instance.
+    using FileClass = ::arrow::io::FileOutputStream;
+    std::shared_ptr<FileClass> out_file;
+    PARQUET_THROW_NOT_OK(FileClass::Open(PARQUET_FILENAME, &out_file));
+
+    // Setup the parquet schema
+    std::shared_ptr<GroupNode> schema = SetupSchema();
+
+    // Add writer properties
+    parquet::WriterProperties::Builder builder;
+    builder.compression(parquet::Compression::UNCOMPRESSED);
+    std::shared_ptr<parquet::WriterProperties> props = builder.build();
+
+    // Create a ParquetFileWriter instance
+    std::shared_ptr<parquet::ParquetFileWriter> file_writer =
+        parquet::ParquetFileWriter::Open(out_file, schema, props);
+
+    // Append a RowGroup with a specific number of rows.
+    parquet::RowGroupWriter* rg_writer = file_writer->AppendRowGroup();
+
+    // // Write the Bool column
+    // parquet::BoolWriter* bool_writer =
+    //     static_cast<parquet::BoolWriter*>(rg_writer->NextColumn());
+    // for (int i = 0; i < NUM_ROWS_PER_ROW_GROUP; i++) {
+    //   bool value = ((i % 2) == 0) ? true : false;
+    //   bool_writer->WriteBatch(1, nullptr, nullptr, &value);
+    // }
+
+    writecolswithindex(NUM_ROWS_PER_ROW_GROUP,rg_writer,1,1,1.1f,1.1111111,124);
     
 
     // Write the FixedLengthByteArray column
@@ -185,29 +323,10 @@ void writeparquet(int NUM_ROWS_PER_ROW_GROUP, char PARQUET_FILENAME[]) {
 int main(int argc, char** argv) {
 
   int NUM_ROWS_PER_ROW_GROUP = 1000000;
-  char PARQUET_FILENAME1[] = "parquet_cpp_example_1M.parquet";
+  char PARQUET_FILENAME[] = "parquet_cpp_example_1Gfile_1000000.parquet";
   
-  writeparquet(NUM_ROWS_PER_ROW_GROUP,PARQUET_FILENAME1);
-
-  NUM_ROWS_PER_ROW_GROUP = 1250000;
-  char PARQUET_FILENAME2[] = "parquet_cpp_example_1pt25M.parquet";
-  
-  writeparquet(NUM_ROWS_PER_ROW_GROUP,PARQUET_FILENAME2);
-
-  NUM_ROWS_PER_ROW_GROUP = 1500000;
-  char PARQUET_FILENAME3[] = "parquet_cpp_example_1pt5M.parquet";
-  
-  writeparquet(NUM_ROWS_PER_ROW_GROUP,PARQUET_FILENAME3);
-
-  NUM_ROWS_PER_ROW_GROUP = 1750000;
-  char PARQUET_FILENAME4[] = "parquet_cpp_example_1pt75M.parquet";
-  
-  writeparquet(NUM_ROWS_PER_ROW_GROUP,PARQUET_FILENAME4);
-
-  NUM_ROWS_PER_ROW_GROUP = 2000000;
-  char PARQUET_FILENAME5[] = "parquet_cpp_example_2M.parquet";
-  
-  writeparquet(NUM_ROWS_PER_ROW_GROUP,PARQUET_FILENAME5);
+  //writeparquet(NUM_ROWS_PER_ROW_GROUP,PARQUET_FILENAME);
+  writeparquetwithindex(NUM_ROWS_PER_ROW_GROUP,PARQUET_FILENAME);
   /**********************************************************************************
                              PARQUET READER EXAMPLE
   **********************************************************************************

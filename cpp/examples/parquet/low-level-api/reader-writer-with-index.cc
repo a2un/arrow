@@ -677,6 +677,8 @@ int parquet_writer(int argc, char** argv) {
       }
 
       int col_id = 0;
+      int64_t current_page_row_set_index = 0;
+
       // Write the Bool column
       parquet::BoolWriter* bool_writer =
           static_cast<parquet::BoolWriter*>(rg_writer->column(col_id));
@@ -689,7 +691,7 @@ int parquet_writer(int argc, char** argv) {
       parquet::Int32Writer* int32_writer =
           static_cast<parquet::Int32Writer*>(rg_writer->column(col_id));
       int32_t int32_value = i;
-      int32_writer->WriteBatchWithIndex(1, nullptr, nullptr, &int32_value);
+      int32_writer->WriteBatch(1, nullptr, nullptr, &int32_value);
       buffered_values_estimate[col_id] = int32_writer->EstimatedBufferedValueBytes();
 
       // Write the Int64 column. Each row has repeats twice.
@@ -699,10 +701,10 @@ int parquet_writer(int argc, char** argv) {
       int64_t int64_value1 = 2 * i;
       int16_t definition_level = 1;
       int16_t repetition_level = 0;
-      int64_writer->WriteBatchWithIndex(1, &definition_level, &repetition_level, &int64_value1);
+      int64_writer->WriteBatch(1, &definition_level, &repetition_level, &int64_value1);
       int64_t int64_value2 = (2 * i + 1);
       repetition_level = 1;  // start of a new record
-      int64_writer->WriteBatchWithIndex(1, &definition_level, &repetition_level, &int64_value2);
+      int64_writer->WriteBatch(1, &definition_level, &repetition_level, &int64_value2);
       buffered_values_estimate[col_id] = int64_writer->EstimatedBufferedValueBytes();
 
       // Write the INT96 column.
@@ -721,7 +723,7 @@ int parquet_writer(int argc, char** argv) {
       parquet::FloatWriter* float_writer =
           static_cast<parquet::FloatWriter*>(rg_writer->column(col_id));
       float float_value = static_cast<float>(i) * 1.1f;
-      float_writer->WriteBatchWithIndex(1, nullptr, nullptr, &float_value);
+      float_writer->WriteBatch(1, nullptr, nullptr, &float_value);
       buffered_values_estimate[col_id] = float_writer->EstimatedBufferedValueBytes();
 
       // Write the Double column
@@ -729,7 +731,7 @@ int parquet_writer(int argc, char** argv) {
       parquet::DoubleWriter* double_writer =
           static_cast<parquet::DoubleWriter*>(rg_writer->column(col_id));
       double double_value = i * 1.1111111;
-      double_writer->WriteBatchWithIndex(1, nullptr, nullptr, &double_value);
+      double_writer->WriteBatch(1, nullptr, nullptr, &double_value);
       buffered_values_estimate[col_id] = double_writer->EstimatedBufferedValueBytes();
 
       // Write the ByteArray column. Make every alternate values NULL
@@ -745,10 +747,10 @@ int parquet_writer(int argc, char** argv) {
         int16_t definition_level = 1;
         ba_value.ptr = reinterpret_cast<const uint8_t*>(&hello[0]);
         ba_value.len = FIXED_LENGTH;
-        ba_writer->WriteBatchWithIndex(1, &definition_level, nullptr, &ba_value);
+        ba_writer->WriteBatch(1, &definition_level, nullptr, &ba_value);
       } else {
         int16_t definition_level = 0;
-        ba_writer->WriteBatchWithIndex(1, &definition_level, nullptr, nullptr);
+        ba_writer->WriteBatch(1, &definition_level, nullptr, nullptr);
       }
       buffered_values_estimate[col_id] = ba_writer->EstimatedBufferedValueBytes();
 
@@ -761,7 +763,7 @@ int parquet_writer(int argc, char** argv) {
       char flba[FIXED_LENGTH] = {v, v, v, v, v, v, v, v, v, v};
       flba_value.ptr = reinterpret_cast<const uint8_t*>(&flba[0]);
 
-      flba_writer->WriteBatchWithIndex(1, nullptr, nullptr, &flba_value);
+      flba_writer->WriteBatch(1, nullptr, nullptr, &flba_value);
       buffered_values_estimate[col_id] = flba_writer->EstimatedBufferedValueBytes();
     }
 

@@ -24,6 +24,7 @@
 #include "parquet/exception.h"
 #include "parquet/platform.h"
 #include "parquet/types.h"
+#include "parquet/parquet_types.h"
 
 namespace arrow {
 
@@ -95,13 +96,17 @@ class PARQUET_EXPORT PageWriter {
 
   virtual int64_t WriteDataPage(const CompressedDataPage& page) = 0;
 
-  virtual void WriteDataPagesWithIndex(const std::vector<CompressedDataPage> data_pages,int64_t& total_bytes_written) = 0;
+  virtual int64_t WriteDataPagesWithIndex(const CompressedDataPage& data_page, format::PageLocation& ploc) = 0;
+
+  virtual void WriteIndex(int64_t file_pos_, int64_t ci_offset, int64_t oi_offset) = 0;
 
   virtual int64_t WriteDictionaryPage(const DictionaryPage& page) = 0;
 
   virtual bool has_compressor() = 0;
 
   virtual void Compress(const Buffer& src_buffer, ResizableBuffer* dest_buffer) = 0;
+
+  int64_t current_page_row_set_index;
 };
 
 static constexpr int WRITE_BATCH_SIZE = 1000;
@@ -116,6 +121,10 @@ class PARQUET_EXPORT ColumnWriter {
   /// \brief Closes the ColumnWriter, commits any buffered values to pages.
   /// \return Total size of the column in bytes
   virtual int64_t Close() = 0;
+
+  virtual int64_t CloseWithIndex() = 0;
+
+  virtual void WriteIndex(int64_t file_pos_,  int64_t ci_offset, int64_t oi_offset) = 0;
 
   /// \brief The physical Parquet type of the column
   virtual Type::type type() const = 0;
@@ -155,12 +164,6 @@ class TypedColumnWriter : public ColumnWriter {
   // column.
   virtual void WriteBatch(int64_t num_values, const int16_t* def_levels,
                           const int16_t* rep_levels, const T* values) = 0;
-  
-  // Write a batch of repetition levels, definition levels, and values to the
-  // column.
-  virtual void WriteBatchWithIndex(int64_t num_values, const int16_t* def_levels,
-                          const int16_t* rep_levels, const T* values) = 0;
-
   /// Write a batch of repetition levels, definition levels, and values to the
   /// column.
   ///
