@@ -689,7 +689,7 @@ class ColumnWriterImpl {
     
     if (page_stats.is_set()) {
       
-      Status s_min = TruncateDown(page_stats.max(), PAGE_INDEX_MAX_STRING_LENGTH, &min_val);
+      Status s_min = TruncateDown(page_stats.min(), PAGE_INDEX_MAX_STRING_LENGTH, &min_val);
       
       Status s_max = TruncateUp(page_stats.max(), PAGE_INDEX_MAX_STRING_LENGTH, &max_val);
 
@@ -887,9 +887,9 @@ void ColumnWriterImpl::AddDataPageWithIndex() {
     CompressedDataPage page(compressed_data, static_cast<int32_t>(num_buffered_values_),
                             encoding_, Encoding::RLE, Encoding::RLE, uncompressed_size,
                             page_stats);
+    AddPageStatsToColumnIndex(page_stats);
     WriteDataPageWithIndex(page,ploc);
     AddLocationToOffsetIndex(ploc);
-    AddPageStatsToColumnIndex(page_stats);
   }
 
   // Re-initialize the sinks for next Page.
@@ -971,9 +971,9 @@ void ColumnWriterImpl::FlushBufferedDataPagesWithIndex() {
   PARQUET_THROW_NOT_OK(ReserveOffsetIndex(data_pages_.size()));
 
   for (size_t i = 0; i < data_pages_.size(); i++) {
+    AddPageStatsToColumnIndex(data_pages_[i].statistics());
     WriteDataPageWithIndex(data_pages_[i],ploc);
     AddLocationToOffsetIndex(ploc);
-    AddPageStatsToColumnIndex(data_pages_[i].statistics());
   }
 
   data_pages_.clear();
