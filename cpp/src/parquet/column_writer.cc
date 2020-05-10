@@ -888,8 +888,8 @@ void ColumnWriterImpl::AddDataPageWithIndex() {
                             encoding_, Encoding::RLE, Encoding::RLE, uncompressed_size,
                             page_stats);
     WriteDataPageWithIndex(page,ploc);
-    //AddLocationToOffsetIndex(ploc);
-    //AddPageStatsToColumnIndex(page_stats);
+    AddLocationToOffsetIndex(ploc);
+    AddPageStatsToColumnIndex(page_stats);
   }
 
   // Re-initialize the sinks for next Page.
@@ -972,8 +972,8 @@ void ColumnWriterImpl::FlushBufferedDataPagesWithIndex() {
 
   for (size_t i = 0; i < data_pages_.size(); i++) {
     WriteDataPageWithIndex(data_pages_[i],ploc);
-    //AddLocationToOffsetIndex(ploc);
-    //AddPageStatsToColumnIndex(data_pages_[i].statistics());
+    AddLocationToOffsetIndex(ploc);
+    AddPageStatsToColumnIndex(data_pages_[i].statistics());
   }
 
   data_pages_.clear();
@@ -1014,7 +1014,7 @@ class TypedColumnWriterImpl : public ColumnWriterImpl, public TypedColumnWriter<
   }
 
   void WriteBatch(int64_t num_values, const int16_t* def_levels,
-                  const int16_t* rep_levels, const T* values) override;
+                  const int16_t* rep_levels, const T* values, bool with_index) override;
 
   void WriteBatchSpaced(int64_t num_values, const int16_t* def_levels,
                         const int16_t* rep_levels, const uint8_t* valid_bits,
@@ -1091,7 +1091,7 @@ class TypedColumnWriterImpl : public ColumnWriterImpl, public TypedColumnWriter<
   std::shared_ptr<TypedStats> chunk_statistics_;
 
   inline int64_t WriteMiniBatch(int64_t num_values, const int16_t* def_levels,
-                                const int16_t* rep_levels, const T* values);
+                                const int16_t* rep_levels, const T* values, bool with_index);
 
   inline int64_t WriteMiniBatchSpaced(int64_t num_values, const int16_t* def_levels,
                                       const int16_t* rep_levels,
@@ -1138,7 +1138,8 @@ template <typename DType>
 int64_t TypedColumnWriterImpl<DType>::WriteMiniBatch(int64_t num_values,
                                                      const int16_t* def_levels,
                                                      const int16_t* rep_levels,
-                                                     const T* values) {
+                                                     const T* values,
+                                                     bool with_index) {
   int64_t values_to_write = 0;
   // If the field is required and non-repeated, there are no definition levels
   if (descr_->max_definition_level() > 0) {
@@ -1185,7 +1186,10 @@ int64_t TypedColumnWriterImpl<DType>::WriteMiniBatch(int64_t num_values,
   num_buffered_encoded_values_ += values_to_write;
 
   if (current_encoder_->EstimatedDataEncodedSize() >= properties_->data_pagesize()) {
-    AddDataPage();
+    if (!with_index)
+       AddDataPage();
+    else
+       AddDataPageWithIndex();
   }
   if (has_dictionary_ && !fallback_) {
     CheckDictionarySizeLimit();
@@ -1269,7 +1273,8 @@ template <typename DType>
 void TypedColumnWriterImpl<DType>::WriteBatch(int64_t num_values,
                                               const int16_t* def_levels,
                                               const int16_t* rep_levels,
-                                              const T* values) {
+                                              const T* values,
+                                              bool with_index) {
   // We check for DataPage limits only after we have inserted the values. If a user
   // writes a large number of values, the DataPage size can be much above the limit.
   // The purpose of this chunking is to bound this. Even if a user writes large number
@@ -1282,13 +1287,13 @@ void TypedColumnWriterImpl<DType>::WriteBatch(int64_t num_values,
   for (int round = 0; round < num_batches; round++) {
     int64_t offset = round * write_batch_size;
     int64_t num_values = WriteMiniBatch(write_batch_size, &def_levels[offset],
-                                        &rep_levels[offset], &values[value_offset]);
+                                        &rep_levels[offset], &values[value_offset], with_index);
     value_offset += num_values;
   }
   // Write the remaining values
   int64_t offset = num_batches * write_batch_size;
   WriteMiniBatch(num_remaining, &def_levels[offset], &rep_levels[offset],
-                 &values[value_offset]);
+                 &values[value_offset], with_index);
 }
 
 template <typename DType>
@@ -1444,7 +1449,7 @@ Status TypedColumnWriterImpl<BooleanType>::WriteArrow(const int16_t* def_levels,
       buffer[buffer_idx++] = BitUtil::GetBit(values, offset + i);
     }
   }
-  PARQUET_CATCH_NOT_OK(WriteBatch(num_levels, def_levels, rep_levels, buffer));
+  PARQUET_CATCH_NOT_OK(WriteBatch(num_levels, def_levels, rep_levels, buffer,false));
   return Status::OK();
 }
 
@@ -1486,7 +1491,7 @@ Status TypedColumnWriterImpl<Int32Type>::WriteArrow(const int16_t* def_levels,
                                                     ArrowWriteContext* ctx) {
   switch (array.type()->id()) {
     case ::arrow::Type::NA: {
-      PARQUET_CATCH_NOT_OK(WriteBatch(num_levels, def_levels, rep_levels, nullptr));
+      PARQUET_CATCH_NOT_OK(WriteBatch(num_levels, def_levels, rep_levels, nullptr,false));
     } break;
       WRITE_SERIALIZE_CASE(INT8, Int8Type, Int32Type)
       WRITE_SERIALIZE_CASE(UINT8, UInt8Type, Int32Type)

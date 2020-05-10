@@ -44,7 +44,7 @@ class PARQUET_EXPORT RowGroupWriter {
     // to be used only with ParquetFileWriter::AppendRowGroup
     virtual ColumnWriter* NextColumn() = 0;
 
-    virtual ColumnWriter* NextColumnWithIndex(int64_t& current_page_row_set_index) = 0;
+    virtual ColumnWriter* NextColumnWithIndex() = 0;
 
     // to be used only with ParquetFileWriter::AppendBufferedRowGroup
     virtual ColumnWriter* column(int i) = 0;
@@ -69,7 +69,7 @@ class PARQUET_EXPORT RowGroupWriter {
   /// of the previous one cannot be modified anymore.
   ColumnWriter* NextColumn();
 
-  ColumnWriter* NextColumnWithIndex(int64_t& current_page_row_set_index);
+  ColumnWriter* NextColumnWithIndex();
   /// Index of currently written column
   int current_column();
   void Close();

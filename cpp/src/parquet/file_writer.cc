@@ -51,7 +51,7 @@ void RowGroupWriter::Close() {
 
 ColumnWriter* RowGroupWriter::NextColumn() { return contents_->NextColumn(); }
 
-ColumnWriter* RowGroupWriter::NextColumnWithIndex(int64_t& current_page_row_set_index) { return contents_->NextColumnWithIndex(current_page_row_set_index); }
+ColumnWriter* RowGroupWriter::NextColumnWithIndex() { return contents_->NextColumnWithIndex(); }
 
 ColumnWriter* RowGroupWriter::column(int i) { return contents_->column(i); }
 
@@ -134,9 +134,8 @@ class RowGroupSerializer : public RowGroupWriter::Contents {
     return column_writers_[0].get();
   }
 
-  ColumnWriter* NextColumnWithIndex(int64_t& current_page_row_set_index) override {
+  ColumnWriter* NextColumnWithIndex() override {
     use_index = true;
-    
     if (buffered_row_group_) {
       throw ParquetException(
           "NextColumn() is not supported when a RowGroup is written by size");
@@ -145,27 +144,23 @@ class RowGroupSerializer : public RowGroupWriter::Contents {
     if (column_writers_[0]) {
       CheckRowsWritten();
     }
-    
-    // Throws an error if more columns are being written
-    //get next column metadata
-    auto col_meta = metadata_->NextColumnChunk();
 
-    if (column_writers_[0]) {                 //Current Column
+    // Throws an error if more columns are being written
+    auto col_meta = metadata_->NextColumnChunk();
+    int64_t file_pos_;
+    if (column_writers_[0]) {
       total_bytes_written_ += column_writers_[0]->CloseWithIndex();
-      int64_t file_pos_;
-      //sink_->Tell(&file_pos_);
-      //column_writers_[0]->WriteIndex(file_pos_,column_index_offset,offset_index_offset);
+      sink_->Tell(&file_pos_);
+      column_writers_[0]->WriteIndex(file_pos_,column_index_offset,offset_index_offset);
     }
 
     ++next_column_index_;
 
-    // use next column descriptor, metadata to create next column's page writer
-    // use the next column's metadata, next column's page writer to create next column's writer
     const ColumnDescriptor* column_descr = col_meta->descr();
     std::unique_ptr<PageWriter> pager =
         PageWriter::Open(sink_, properties_->compression(column_descr->path()), col_meta,
                          properties_->memory_pool());
-    column_writers_[0] = ColumnWriter::Make(col_meta, std::move(pager), properties_); // next column
+    column_writers_[0] = ColumnWriter::Make(col_meta, std::move(pager), properties_);
     return column_writers_[0].get();
   }
 

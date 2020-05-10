@@ -163,7 +163,7 @@ class TypedColumnWriter : public ColumnWriter {
   // Write a batch of repetition levels, definition levels, and values to the
   // column.
   virtual void WriteBatch(int64_t num_values, const int16_t* def_levels,
-                          const int16_t* rep_levels, const T* values) = 0;
+                          const int16_t* rep_levels, const T* values, bool with_index = false) = 0;
   /// Write a batch of repetition levels, definition levels, and values to the
   /// column.
   ///

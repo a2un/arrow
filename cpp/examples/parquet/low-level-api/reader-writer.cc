@@ -52,7 +52,7 @@ void writecols(int NUM_ROWS_PER_ROW_GROUP,parquet::RowGroupWriter*& rg_writer,in
         static_cast<parquet::Int32Writer*>(rg_writer->NextColumn());
     for (int i = 0; i < NUM_ROWS_PER_ROW_GROUP; i++) {
       int32_t value = i*int32factor;
-      int32_writer->WriteBatch(1, nullptr, nullptr, &value);
+      int32_writer->WriteBatch(1, nullptr, nullptr, &value, false);
     }
 
     // Write the Int64 column. Each row has not[repeats twice].
@@ -60,7 +60,7 @@ void writecols(int NUM_ROWS_PER_ROW_GROUP,parquet::RowGroupWriter*& rg_writer,in
         static_cast<parquet::Int64Writer*>(rg_writer->NextColumn());
     for (int i = 0; i < NUM_ROWS_PER_ROW_GROUP; i++) {
       int64_t value = i*int64factor;
-      int64_writer->WriteBatch(1, nullptr,nullptr, &value);
+      int64_writer->WriteBatch(1, nullptr,nullptr, &value, false);
     }
 
     // Write the INT96 column.
@@ -71,7 +71,7 @@ void writecols(int NUM_ROWS_PER_ROW_GROUP,parquet::RowGroupWriter*& rg_writer,in
       value.value[0] = i;
       value.value[1] = i + 1;
       value.value[2] = i + 2;
-      int96_writer->WriteBatch(1, nullptr, nullptr, &value);
+      int96_writer->WriteBatch(1, nullptr, nullptr, &value, false);
     }
 */
     // Write the Float column
@@ -79,7 +79,7 @@ void writecols(int NUM_ROWS_PER_ROW_GROUP,parquet::RowGroupWriter*& rg_writer,in
         static_cast<parquet::FloatWriter*>(rg_writer->NextColumn());
     for (int i = 0; i < NUM_ROWS_PER_ROW_GROUP; i++) {
       float value = static_cast<float>(i) * float_factor;//1.1f;
-      float_writer->WriteBatch(1, nullptr, nullptr, &value);
+      float_writer->WriteBatch(1, nullptr, nullptr, &value, false);
     }
 
     // Write the Double column
@@ -87,7 +87,7 @@ void writecols(int NUM_ROWS_PER_ROW_GROUP,parquet::RowGroupWriter*& rg_writer,in
         static_cast<parquet::DoubleWriter*>(rg_writer->NextColumn());
     for (int i = 0; i < NUM_ROWS_PER_ROW_GROUP; i++) {
       double value = i * double_factor;//1.1111111;
-      double_writer->WriteBatch(1, nullptr, nullptr, &value);
+      double_writer->WriteBatch(1, nullptr, nullptr, &value, false);
     }
 
     // Write the ByteArray column. Make every alternate values NULL
@@ -106,70 +106,53 @@ void writecols(int NUM_ROWS_PER_ROW_GROUP,parquet::RowGroupWriter*& rg_writer,in
         int16_t definition_level = 1;
         value.ptr = reinterpret_cast<const uint8_t*>(&hello[0]);
         value.len = FIXED_LENGTH;
-        ba_writer->WriteBatch(1, &definition_level, nullptr, &value);
+        ba_writer->WriteBatch(1, &definition_level, nullptr, &value, false);
       } else {
         int16_t definition_level = 1;
         value.ptr = reinterpret_cast<const uint8_t*>(&hello[0]);
         value.len = FIXED_LENGTH;
-        ba_writer->WriteBatch(1, &definition_level, nullptr, &value);
+        ba_writer->WriteBatch(1, &definition_level, nullptr, &value, false);
       }
     }
 }
 
 void writecolswithindex(int NUM_ROWS_PER_ROW_GROUP,parquet::RowGroupWriter*& rg_writer,int32_t int32factor,int64_t int64factor, float float_factor,double double_factor,int FIXED_LENGTH){
     
-    int64_t current_page_row_set_index = 0;
     // Write the Int32 column
     parquet::Int32Writer* int32_writer =
-        static_cast<parquet::Int32Writer*>(rg_writer->NextColumnWithIndex(current_page_row_set_index));
+        static_cast<parquet::Int32Writer*>(rg_writer->NextColumnWithIndex());
     for (int i = 0; i < NUM_ROWS_PER_ROW_GROUP; i++) {
       int32_t value = i*int32factor;
-      int32_writer->WriteBatch(1, nullptr, nullptr, &value);
+      int32_writer->WriteBatch(1, nullptr, nullptr, &value, true);
     }
     
-    current_page_row_set_index = 0;
- 
     // Write the Int64 column. Each row has not[repeats twice].
     parquet::Int64Writer* int64_writer =
-        static_cast<parquet::Int64Writer*>(rg_writer->NextColumnWithIndex(current_page_row_set_index));
+        static_cast<parquet::Int64Writer*>(rg_writer->NextColumnWithIndex());
     for (int i = 0; i < NUM_ROWS_PER_ROW_GROUP; i++) {
       int64_t value = i*int64factor;
-      int64_writer->WriteBatch(1, nullptr,nullptr, &value);
+      int64_writer->WriteBatch(1, nullptr,nullptr, &value, true);
     }
 
-    // Write the INT96 column.
-/*    parquet::Int96Writer* int96_writer =
-        static_cast<parquet::Int96Writer*>(rg_writer->NextColumnWithIndex());
-    for (int i = 0; i < NUM_ROWS_PER_ROW_GROUP; i++) {
-      parquet::Int96 value;
-      value.value[0] = i;
-      value.value[1] = i + 1;
-      value.value[2] = i + 2;
-      int96_writer->WriteBatch(1, nullptr, nullptr, &value);
-    }
-*/
-    current_page_row_set_index = 0;
     // Write the Float column
     parquet::FloatWriter* float_writer =
-        static_cast<parquet::FloatWriter*>(rg_writer->NextColumnWithIndex(current_page_row_set_index));
+        static_cast<parquet::FloatWriter*>(rg_writer->NextColumnWithIndex());
     for (int i = 0; i < NUM_ROWS_PER_ROW_GROUP; i++) {
       float value = static_cast<float>(i) * float_factor;//1.1f;
-      float_writer->WriteBatch(1, nullptr, nullptr, &value);
+      float_writer->WriteBatch(1, nullptr, nullptr, &value, true);
     }
 
-    current_page_row_set_index = 0;
     // Write the Double column
     parquet::DoubleWriter* double_writer =
-        static_cast<parquet::DoubleWriter*>(rg_writer->NextColumnWithIndex(current_page_row_set_index));
+        static_cast<parquet::DoubleWriter*>(rg_writer->NextColumnWithIndex());
     for (int i = 0; i < NUM_ROWS_PER_ROW_GROUP; i++) {
       double value = i * double_factor;//1.1111111;
-      double_writer->WriteBatch(1, nullptr, nullptr, &value);
+      double_writer->WriteBatch(1, nullptr, nullptr, &value, true);
     }
 
-    current_page_row_set_index = 0;
     // Write the ByteArray column. Make every alternate values NULL
     parquet::ByteArrayWriter* ba_writer =
-        static_cast<parquet::ByteArrayWriter*>(rg_writer->NextColumnWithIndex(current_page_row_set_index));
+        static_cast<parquet::ByteArrayWriter*>(rg_writer->NextColumnWithIndex());
     for (int i = 0; i < NUM_ROWS_PER_ROW_GROUP; i++) {
       parquet::ByteArray value;
       char hello[FIXED_LENGTH];// = "parquet";
@@ -183,12 +166,12 @@ void writecolswithindex(int NUM_ROWS_PER_ROW_GROUP,parquet::RowGroupWriter*& rg_
         int16_t definition_level = 1;
         value.ptr = reinterpret_cast<const uint8_t*>(&hello[0]);
         value.len = FIXED_LENGTH;
-        ba_writer->WriteBatch(1, &definition_level, nullptr, &value);
+        ba_writer->WriteBatch(1, &definition_level, nullptr, &value, true);
       } else {
         int16_t definition_level = 1;
         value.ptr = reinterpret_cast<const uint8_t*>(&hello[0]);
         value.len = FIXED_LENGTH;
-        ba_writer->WriteBatch(1, &definition_level, nullptr, &value);
+        ba_writer->WriteBatch(1, &definition_level, nullptr, &value, true);
       }
     }
 }
