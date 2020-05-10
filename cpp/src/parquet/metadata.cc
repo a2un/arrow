@@ -846,20 +846,6 @@ class RowGroupMetaDataBuilder::RowGroupMetaDataBuilderImpl {
     return column_builder_ptr;
   }
 
-  ColumnChunkMetaDataBuilder* NextColumnChunkWithIndex() {
-    if (!(next_column_ < num_columns())) {
-      std::stringstream ss;
-      ss << "The schema only has " << num_columns()
-         << " columns, requested metadata for column: " << next_column_;
-      throw ParquetException(ss.str());
-    }
-    auto column = schema_->Column(next_column_);
-    auto column_builder = ColumnChunkMetaDataBuilder::Make(
-        properties_, column, &row_group_->columns[next_column_++]);
-    auto column_builder_ptr = column_builder.get();
-    column_builders_.push_back(std::move(column_builder));
-    return column_builder_ptr;
-  }
 
   int current_column() { return next_column_ - 1; }
 
@@ -919,10 +905,6 @@ RowGroupMetaDataBuilder::~RowGroupMetaDataBuilder() {}
 
 ColumnChunkMetaDataBuilder* RowGroupMetaDataBuilder::NextColumnChunk() {
   return impl_->NextColumnChunk();
-}
-
-ColumnChunkMetaDataBuilder* RowGroupMetaDataBuilder::NextColumnChunkWithIndex() {
-  return impl_->NextColumnChunkWithIndex();
 }
 
 int RowGroupMetaDataBuilder::current_column() const { return impl_->current_column(); }

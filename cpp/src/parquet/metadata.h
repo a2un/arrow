@@ -272,7 +272,6 @@ class PARQUET_EXPORT RowGroupMetaDataBuilder {
   ~RowGroupMetaDataBuilder();
 
   ColumnChunkMetaDataBuilder* NextColumnChunk();
-  ColumnChunkMetaDataBuilder* NextColumnChunkWithIndex();
   int num_columns();
   int64_t num_rows();
   int current_column() const;

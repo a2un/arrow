@@ -889,7 +889,7 @@ void ColumnWriterImpl::AddDataPageWithIndex() {
     CompressedDataPage page(compressed_data, static_cast<int32_t>(num_buffered_values_),
                             encoding_, Encoding::RLE, Encoding::RLE, uncompressed_size,
                             page_stats);
-    WriteDataPageWithIndex(page,ploc);
+    WriteDataPage(page);//WithIndex(page,ploc);
     AddLocationToOffsetIndex(ploc);
     AddPageStatsToColumnIndex(page_stats);
   }
@@ -967,15 +967,15 @@ void ColumnWriterImpl::FlushBufferedDataPages() {
 void ColumnWriterImpl::FlushBufferedDataPagesWithIndex() {
 
   if (num_buffered_values_ > 0) {
-    AddDataPageWithIndex();
+    AddDataPage();
   }
   
   PARQUET_THROW_NOT_OK(ReserveOffsetIndex(data_pages_.size()));
 
   for (size_t i = 0; i < data_pages_.size(); i++) {
-    WriteDataPageWithIndex(data_pages_[i],ploc);
-    AddLocationToOffsetIndex(ploc);
-    AddPageStatsToColumnIndex(data_pages_[i].statistics());
+    WriteDataPage(data_pages_[i]);//WithIndex(data_pages_[i],ploc);
+    //AddLocationToOffsetIndex(ploc);
+    //AddPageStatsToColumnIndex(data_pages_[i].statistics());
   }
 
   data_pages_.clear();

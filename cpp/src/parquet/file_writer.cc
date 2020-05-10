@@ -148,13 +148,13 @@ class RowGroupSerializer : public RowGroupWriter::Contents {
     
     // Throws an error if more columns are being written
     //get next column metadata
-    auto col_meta = metadata_->NextColumnChunkWithIndex();
+    auto col_meta = metadata_->NextColumnChunk();
 
     if (column_writers_[0]) {                 //Current Column
       total_bytes_written_ += column_writers_[0]->CloseWithIndex();
       int64_t file_pos_;
-      sink_->Tell(&file_pos_);
-      column_writers_[0]->WriteIndex(file_pos_,column_index_offset,offset_index_offset);
+      //sink_->Tell(&file_pos_);
+      //column_writers_[0]->WriteIndex(file_pos_,column_index_offset,offset_index_offset);
     }
 
     ++next_column_index_;
