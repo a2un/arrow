@@ -244,7 +244,7 @@ class PARQUET_EXPORT ColumnChunkMetaDataBuilder {
               int64_t compressed_size, int64_t uncompressed_size, bool has_dictionary,
               bool dictionary_fallback);
 
-  void WriteIndex(int64_t file_pos_, int64_t column_index_offset,int64_t offset_index_offset);
+  void WriteIndex(int64_t& file_pos_, int64_t& ci_offset, int64_t& oi_offset, uint32_t& ci_len, uint32_t& oi_len);
 
   // The metadata contents, suitable for passing to ColumnChunkMetaData::Make
   const void* contents() const;

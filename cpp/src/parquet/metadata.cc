@@ -734,54 +734,11 @@ class ColumnChunkMetaDataBuilder::ColumnChunkMetaDataBuilderImpl {
     column_chunk_->meta_data.__set_encodings(thrift_encodings);
   }
 
-  /* sample Adding ColumnIndex from chunk to offset.
-  * Status HdfsParquetTableWriter::WritePageIndex() {
-  if (!state_->query_options().parquet_write_page_index) return Status::OK();
-
-  // Currently Impala only write Parquet files with a single row group. The current
-  // page index logic depends on this behavior as it only keeps one row group's
-  // statistics in memory.
-  DCHECK_EQ(file_metadata_.row_groups.size(), 1);
-
-  parquet::RowGroup* row_group = &(file_metadata_.row_groups[0]);
-  // Write out the column indexes.
-  for (int i = 0; i < columns_.size(); ++i) {
-    auto& column = *columns_[i]; // column-writer
-    if (!column.valid_column_index_) continue;
-    column.column_index_.__set_boundary_order(
-        column.row_group_stats_base_->GetBoundaryOrder());
-    // We always set null_counts.
-    column.column_index_.__isset.null_counts = true;
-    uint8_t* buffer = nullptr;
-    uint32_t len = 0;
-    RETURN_IF_ERROR(thrift_serializer_->SerializeToBuffer(
-        &column.column_index_, &len, &buffer));
-    RETURN_IF_ERROR(Write(buffer, len));
-    // Update the column_index_offset and column_index_length of the ColumnChunk
-    row_group->columns[i].__set_column_index_offset(file_pos_);
-    row_group->columns[i].__set_column_index_length(len);
-    file_pos_ += len;
-  }
-  // Write out the offset indexes.
-  for (int i = 0; i < columns_.size(); ++i) {
-    auto& column = *columns_[i];  // column-writer
-    uint8_t* buffer = nullptr;
-    uint32_t len = 0;
-    RETURN_IF_ERROR(thrift_serializer_->SerializeToBuffer(
-        &column.offset_index_, &len, &buffer));
-    RETURN_IF_ERROR(Write(buffer, len));
-    // Update the offset_index_offset and offset_index_length of the ColumnChunk
-    row_group->columns[i].__set_offset_index_offset(file_pos_);
-    row_group->columns[i].__set_offset_index_length(len);
-    file_pos_ += len;
-  }
-  return Status::OK();
-}
-  * 
-  */
-
-  void WriteIndex(int64_t file_pos_, int64_t column_index_offset, int64_t offset_index_offset) {
-
+  void WriteIndex(int64_t& file_pos_, int64_t& column_index_offset, int64_t& offset_index_offset, uint32_t& ci_len, uint32_t& oi_len) {
+      column_chunk_->__set_column_index_offset(file_pos_+column_index_offset);
+      column_chunk_->__set_column_index_length(ci_len);
+      column_chunk_->__set_offset_index_offset(file_pos_+offset_index_offset);
+      column_chunk_->__set_offset_index_length(oi_len);
   }
 
   void WriteTo(::arrow::io::OutputStream* sink) {
@@ -853,8 +810,8 @@ void ColumnChunkMetaDataBuilder::WriteTo(::arrow::io::OutputStream* sink) {
   impl_->WriteTo(sink);
 }
 
-void ColumnChunkMetaDataBuilder::WriteIndex(int64_t file_pos_, int64_t column_index_offset, int64_t offset_index_offset) {
-   impl_->WriteIndex(file_pos_,column_index_offset, offset_index_offset);
+void ColumnChunkMetaDataBuilder::WriteIndex(int64_t& file_pos_, int64_t& ci_offset, int64_t& oi_offset, uint32_t& ci_len, uint32_t& oi_len) {
+   impl_->WriteIndex(file_pos_,ci_offset, oi_offset,ci_len,oi_len);
 }
 
 const ColumnDescriptor* ColumnChunkMetaDataBuilder::descr() const {

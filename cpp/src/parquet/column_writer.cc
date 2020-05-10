@@ -147,6 +147,7 @@ class SerializedPageWriter : public PageWriter {
         total_compressed_size_(0) {
     compressor_ = GetCodecFromArrow(codec);
     thrift_serializer_.reset(new ThriftSerializer);
+    current_page_row_set_index = 0;
   }
 
   int64_t WriteDictionaryPage(const DictionaryPage& page) override {
@@ -304,10 +305,72 @@ class SerializedPageWriter : public PageWriter {
     return current_pos - start_pos;
 }
 
-  void WriteIndex(int64_t file_pos_, int64_t ci_offset, int64_t oi_offset) {
-     // index_page_offset = -1 since they are not supported
-    metadata_->WriteIndex(file_pos_, ci_offset, oi_offset);
 
+  /* sample Adding ColumnIndex from chunk to offset.
+  * Status HdfsParquetTableWriter::WritePageIndex() {
+  if (!state_->query_options().parquet_write_page_index) return Status::OK();
+
+  // Currently Impala only write Parquet files with a single row group. The current
+  // page index logic depends on this behavior as it only keeps one row group's
+  // statistics in memory.
+  DCHECK_EQ(file_metadata_.row_groups.size(), 1);
+
+  parquet::RowGroup* row_group = &(file_metadata_.row_groups[0]);
+  // Write out the column indexes.
+  for (int i = 0; i < columns_.size(); ++i) {
+    auto& column = *columns_[i]; // column-writer
+    if (!column.valid_column_index_) continue;
+    column.column_index_.__set_boundary_order(
+        column.row_group_stats_base_->GetBoundaryOrder());
+    // We always set null_counts.
+    column.column_index_.__isset.null_counts = true;
+    uint8_t* buffer = nullptr;
+    uint32_t len = 0;
+    RETURN_IF_ERROR(thrift_serializer_->SerializeToBuffer(
+        &column.column_index_, &len, &buffer));
+    RETURN_IF_ERROR(Write(buffer, len));
+    // Update the column_index_offset and column_index_length of the ColumnChunk
+    row_group->columns[i].__set_column_index_offset(file_pos_);
+    row_group->columns[i].__set_column_index_length(len);
+    file_pos_ += len;
+  }
+  // Write out the offset indexes.
+  for (int i = 0; i < columns_.size(); ++i) {
+    auto& column = *columns_[i];  // column-writer
+    uint8_t* buffer = nullptr;
+    uint32_t len = 0;
+    RETURN_IF_ERROR(thrift_serializer_->SerializeToBuffer(
+        &column.offset_index_, &len, &buffer));
+    RETURN_IF_ERROR(Write(buffer, len));
+    // Update the offset_index_offset and offset_index_length of the ColumnChunk
+    row_group->columns[i].__set_offset_index_offset(file_pos_);
+    row_group->columns[i].__set_offset_index_length(len);
+    file_pos_ += len;
+  }
+  return Status::OK();
+}
+  * 
+  */
+
+  void WriteIndex(int64_t& file_pos_, int64_t& ci_offset, int64_t& oi_offset, format::ColumnIndex& ci, format::OffsetIndex& oi) {
+     // index_page_offset = -1 since they are not supported
+
+    uint32_t ci_len, oi_len;
+    uint8_t* buffer;
+    
+    thrift_serializer_->SerializeToBuffer(&ci,&ci_len,&buffer);
+    sink_->Write(buffer,ci_len);
+    thrift_serializer_->SerializeToBuffer(&oi,&oi_len,&buffer);
+    sink_->Write(buffer,oi_len);
+
+    if (oi_offset == 0 && ci_offset == 0) {
+       oi_offset = ci_len;
+    }
+
+    metadata_->WriteIndex(file_pos_, ci_offset, oi_offset, ci_len, oi_len);
+
+    ci_offset += ci_len;
+    oi_offset += oi_len;
     // Write metadata at end of column chunk
     metadata_->WriteTo(sink_.get());
   }
@@ -384,8 +447,8 @@ class BufferedPageWriter : public PageWriter {
       return pager_->WriteDataPagesWithIndex(page, ploc);
   }
   
-  void WriteIndex(int64_t file_pos_, int64_t ci_offset, int64_t oi_offset) {
-      pager_->WriteIndex(file_pos_, ci_offset, oi_offset);
+  void WriteIndex(int64_t& file_pos_, int64_t& ci_offset, int64_t& oi_offset, format::ColumnIndex& ci, format::OffsetIndex& oi) {
+      pager_->WriteIndex(file_pos_, ci_offset, oi_offset, ci, oi);
   }
 
   void Compress(const Buffer& src_buffer, ResizableBuffer* dest_buffer) override {
@@ -461,7 +524,7 @@ class ColumnWriterImpl {
 
   int64_t CloseWithIndex();
 
-  void WriteIndex(int64_t file_pos_, int64_t ci_offset, int64_t oi_offset);
+  void WriteIndex(int64_t& file_pos_, int64_t& ci_offset, int64_t& oi_offset);
 
  protected:
   virtual std::shared_ptr<Buffer> GetValuesBuffer() = 0;
@@ -482,8 +545,7 @@ class ColumnWriterImpl {
   // Serializes the Data Pages in other encoding modes
   void AddDataPage();
 
-  // Adds Data Pages to an in memory buffer in dictionary encoding mode
-  // Serializes the Data Pages in other encoding modes
+  
   void AddDataPageWithIndex();
 
   // Serializes Data Pages
@@ -886,8 +948,8 @@ int64_t ColumnWriterImpl::CloseWithIndex() {
   return total_bytes_written_;
 }
 
-void ColumnWriterImpl::WriteIndex(int64_t file_pos_, int64_t ci_offset, int64_t oi_offset) {
-    pager_->WriteIndex(file_pos_, ci_offset, oi_offset);
+void ColumnWriterImpl::WriteIndex(int64_t& file_pos_, int64_t& ci_offset, int64_t& oi_offset) {
+    pager_->WriteIndex(file_pos_, ci_offset, oi_offset, column_index_, offset_index_);
 }
 
 void ColumnWriterImpl::FlushBufferedDataPages() {
