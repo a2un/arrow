@@ -285,9 +285,6 @@ class SerializedPageWriter : public PageWriter {
       data_page_offset_ = start_pos;
     }
 
-    ploc.offset = start_pos;
-    ploc.first_row_index = current_page_row_set_index;
-
     int64_t header_size = thrift_serializer_->Serialize(&page_header, sink_.get());
     PARQUET_THROW_NOT_OK(sink_->Write(compressed_data->data(), compressed_data->size()));
 
@@ -297,9 +294,10 @@ class SerializedPageWriter : public PageWriter {
 
     int64_t current_pos = -1;
     PARQUET_THROW_NOT_OK(sink_->Tell(&current_pos));
-
+    
+    ploc.offset = start_pos;
+    ploc.first_row_index = current_page_row_set_index;
     ploc.compressed_page_size = page_header.compressed_page_size + (current_pos - start_pos);
-
     current_page_row_set_index += page_header.data_page_header.num_values;
 
     return current_pos - start_pos;
@@ -889,9 +887,9 @@ void ColumnWriterImpl::AddDataPageWithIndex() {
     CompressedDataPage page(compressed_data, static_cast<int32_t>(num_buffered_values_),
                             encoding_, Encoding::RLE, Encoding::RLE, uncompressed_size,
                             page_stats);
-    WriteDataPage(page);//WithIndex(page,ploc);
-    AddLocationToOffsetIndex(ploc);
-    AddPageStatsToColumnIndex(page_stats);
+    WriteDataPageWithIndex(page,ploc);
+    //AddLocationToOffsetIndex(ploc);
+    //AddPageStatsToColumnIndex(page_stats);
   }
 
   // Re-initialize the sinks for next Page.
@@ -967,13 +965,13 @@ void ColumnWriterImpl::FlushBufferedDataPages() {
 void ColumnWriterImpl::FlushBufferedDataPagesWithIndex() {
 
   if (num_buffered_values_ > 0) {
-    AddDataPage();
+    AddDataPageWithIndex();
   }
   
   PARQUET_THROW_NOT_OK(ReserveOffsetIndex(data_pages_.size()));
 
   for (size_t i = 0; i < data_pages_.size(); i++) {
-    WriteDataPage(data_pages_[i]);//WithIndex(data_pages_[i],ploc);
+    WriteDataPageWithIndex(data_pages_[i],ploc);
     //AddLocationToOffsetIndex(ploc);
     //AddPageStatsToColumnIndex(data_pages_[i].statistics());
   }
