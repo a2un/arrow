@@ -1009,7 +1009,7 @@ class TypedColumnWriterImpl : public ColumnWriterImpl, public TypedColumnWriter<
     return ColumnWriterImpl::CloseWithIndex(); 
   }
 
-  void WriteIndex(int64_t file_pos_, int64_t ci_offset, int64_t oi_offset) override { 
+  void WriteIndex(int64_t& file_pos_, int64_t& ci_offset, int64_t& oi_offset) override { 
     return ColumnWriterImpl::WriteIndex(file_pos_,  ci_offset, oi_offset); 
   }
 
