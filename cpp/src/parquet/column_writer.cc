@@ -862,6 +862,7 @@ void ColumnWriterImpl::AddDataPageWithIndex() {
   EncodedStatistics page_stats = GetPageStatistics();
   page_stats.ApplyStatSizeLimits(properties_->max_statistics_size(descr_->path()));
   page_stats.set_is_signed(SortOrder::SIGNED == descr_->sort_order());
+  AddPageStatsToColumnIndex(page_stats);
   ResetPageStatistics();
 
   std::shared_ptr<Buffer> compressed_data;
@@ -887,7 +888,6 @@ void ColumnWriterImpl::AddDataPageWithIndex() {
     CompressedDataPage page(compressed_data, static_cast<int32_t>(num_buffered_values_),
                             encoding_, Encoding::RLE, Encoding::RLE, uncompressed_size,
                             page_stats);
-    AddPageStatsToColumnIndex(page_stats);
     WriteDataPageWithIndex(page,ploc);
     AddLocationToOffsetIndex(ploc);
   }
@@ -971,7 +971,7 @@ void ColumnWriterImpl::FlushBufferedDataPagesWithIndex() {
   PARQUET_THROW_NOT_OK(ReserveOffsetIndex(data_pages_.size()));
 
   for (size_t i = 0; i < data_pages_.size(); i++) {
-    AddPageStatsToColumnIndex(data_pages_[i].statistics());
+    // AddPageStatsToColumnIndex(data_pages_[i].statistics());
     WriteDataPageWithIndex(data_pages_[i],ploc);
     AddLocationToOffsetIndex(ploc);
   }
@@ -1050,7 +1050,7 @@ class TypedColumnWriterImpl : public ColumnWriterImpl, public TypedColumnWriter<
   // Checks if the Dictionary Page size limit is reached
   // If the limit is reached, the Dictionary and Data Pages are serialized
   // The encoding is switched to PLAIN
-  void CheckDictionarySizeLimit();
+  void CheckDictionarySizeLimit(bool with_index);
 
   EncodedStatistics GetPageStatistics() override {
     EncodedStatistics result;
@@ -1115,14 +1115,17 @@ class TypedColumnWriterImpl : public ColumnWriterImpl, public TypedColumnWriter<
 // Only one Dictionary Page is written.
 // Fallback to PLAIN if dictionary page limit is reached.
 template <typename DType>
-void TypedColumnWriterImpl<DType>::CheckDictionarySizeLimit() {
+void TypedColumnWriterImpl<DType>::CheckDictionarySizeLimit(bool with_index) {
   // We have to dynamic cast here because TypedEncoder<Type> as some compilers
   // don't want to cast through virtual inheritance
   auto dict_encoder = dynamic_cast<DictEncoder<DType>*>(current_encoder_.get());
   if (dict_encoder->dict_encoded_size() >= properties_->dictionary_pagesize_limit()) {
     WriteDictionaryPage();
     // Serialize the buffered Dictionary Indicies
-    FlushBufferedDataPages();
+    if (!with_index)
+       FlushBufferedDataPages();
+    else
+       FlushBufferedDataPagesWithIndex();
     fallback_ = true;
     // Only PLAIN encoding is supported for fallback in V1
     current_encoder_ = MakeEncoder(DType::type_num, Encoding::PLAIN, false, descr_,
@@ -1192,7 +1195,7 @@ int64_t TypedColumnWriterImpl<DType>::WriteMiniBatch(int64_t num_values,
        AddDataPageWithIndex();
   }
   if (has_dictionary_ && !fallback_) {
-    CheckDictionarySizeLimit();
+    CheckDictionarySizeLimit(with_index);
   }
 
   return values_to_write;
@@ -1263,7 +1266,7 @@ int64_t TypedColumnWriterImpl<DType>::WriteMiniBatchSpaced(
     AddDataPage();
   }
   if (has_dictionary_ && !fallback_) {
-    CheckDictionarySizeLimit();
+    CheckDictionarySizeLimit(false);
   }
 
   return values_to_write;
