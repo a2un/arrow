@@ -305,8 +305,8 @@ void writeparquetwithindex(int NUM_ROWS_PER_ROW_GROUP, char PARQUET_FILENAME[]) 
 
 int main(int argc, char** argv) {
 
-  int NUM_ROWS_PER_ROW_GROUP = 1000000;
-  char PARQUET_FILENAME[] = "parquet_cpp_example_1Gfile_1000000.parquet";
+  int NUM_ROWS_PER_ROW_GROUP = 10000000;
+  char PARQUET_FILENAME[] = "parquet_cpp_example_10000000.parquet";
   
   //writeparquet(NUM_ROWS_PER_ROW_GROUP,PARQUET_FILENAME);
   writeparquetwithindex(NUM_ROWS_PER_ROW_GROUP,PARQUET_FILENAME);
