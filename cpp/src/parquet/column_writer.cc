@@ -524,6 +524,8 @@ class ColumnWriterImpl {
 
   void WriteIndex(int64_t& file_pos_, int64_t& ci_offset, int64_t& oi_offset);
 
+  void AppendColumnBloomFilter();
+
  protected:
   virtual std::shared_ptr<Buffer> GetValuesBuffer() = 0;
 
@@ -950,6 +952,10 @@ void ColumnWriterImpl::WriteIndex(int64_t& file_pos_, int64_t& ci_offset, int64_
     pager_->WriteIndex(file_pos_, ci_offset, oi_offset, column_index_, offset_index_);
 }
 
+void ColumnWriterImpl::AppendColumnBloomFilter() {
+
+}
+
 void ColumnWriterImpl::FlushBufferedDataPages() {
   // Write all outstanding data to a new page
   if (num_buffered_values_ > 0) {
@@ -1011,6 +1017,10 @@ class TypedColumnWriterImpl : public ColumnWriterImpl, public TypedColumnWriter<
 
   void WriteIndex(int64_t file_pos_, int64_t ci_offset, int64_t oi_offset) override { 
     return ColumnWriterImpl::WriteIndex(file_pos_,  ci_offset, oi_offset); 
+  }
+
+  void AppendColumnBloomFilter() {
+    ColumnWriterImpl::AppendColumnBloomFilter();
   }
 
   void WriteBatch(int64_t num_values, const int16_t* def_levels,

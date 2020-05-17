@@ -741,6 +741,10 @@ class ColumnChunkMetaDataBuilder::ColumnChunkMetaDataBuilderImpl {
       column_chunk_->__set_offset_index_length(oi_len);
   }
 
+  void WriteBloomFilterOffset(int64_t& bloom_filter_offset) {
+      column_chunk_->meta_data.__set_bloom_filter_offset(bloom_filter_offset);
+  }
+
   void WriteTo(::arrow::io::OutputStream* sink) {
     ThriftSerializer serializer;
     serializer.Serialize(column_chunk_, sink);
