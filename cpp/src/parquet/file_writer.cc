@@ -229,7 +229,7 @@ class RowGroupSerializer : public RowGroupWriter::Contents {
   }
 
   void AppendRowGroupBloomFilter() override {
-      column_writers_[current_col_index]->AppendColumnBloomFilter();
+      
   }
 
  private:

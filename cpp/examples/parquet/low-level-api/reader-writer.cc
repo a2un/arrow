@@ -118,6 +118,11 @@ void writecols(int NUM_ROWS_PER_ROW_GROUP,parquet::RowGroupWriter*& rg_writer,in
 
 void writecolswithindex(int NUM_ROWS_PER_ROW_GROUP,parquet::RowGroupWriter*& rg_writer,int32_t int32factor,int64_t int64factor, float float_factor,double double_factor,int FIXED_LENGTH){
     
+    parquet::BlockSplitBloomFilter bloom_filter_;
+    
+    float fpp = 0.01;
+    bloom_filter_.Init(bloom_filter_.OptimalNumOfBits(NUM_ROWS_PER_ROW_GROUP,fpp));
+    
     // Write the Int32 column
     parquet::Int32Writer* int32_writer =
         static_cast<parquet::Int32Writer*>(rg_writer->NextColumnWithIndex());

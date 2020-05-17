@@ -400,6 +400,7 @@ class SerializedPageWriter : public PageWriter {
   // Compression codec to use.
   std::unique_ptr<::arrow::util::Codec> compressor_;
 
+  BlockSplitBloomFilter blf;
 
 };
 
@@ -523,8 +524,6 @@ class ColumnWriterImpl {
   int64_t CloseWithIndex();
 
   void WriteIndex(int64_t& file_pos_, int64_t& ci_offset, int64_t& oi_offset);
-
-  void AppendColumnBloomFilter();
 
  protected:
   virtual std::shared_ptr<Buffer> GetValuesBuffer() = 0;
@@ -952,10 +951,6 @@ void ColumnWriterImpl::WriteIndex(int64_t& file_pos_, int64_t& ci_offset, int64_
     pager_->WriteIndex(file_pos_, ci_offset, oi_offset, column_index_, offset_index_);
 }
 
-void ColumnWriterImpl::AppendColumnBloomFilter() {
-
-}
-
 void ColumnWriterImpl::FlushBufferedDataPages() {
   // Write all outstanding data to a new page
   if (num_buffered_values_ > 0) {
@@ -1019,9 +1014,7 @@ class TypedColumnWriterImpl : public ColumnWriterImpl, public TypedColumnWriter<
     return ColumnWriterImpl::WriteIndex(file_pos_,  ci_offset, oi_offset); 
   }
 
-  void AppendColumnBloomFilter() {
-    ColumnWriterImpl::AppendColumnBloomFilter();
-  }
+  void AppendColumnBloomFilter(int64_t num_values, T*values, BlockSplitBloomFilter& blf);
 
   void WriteBatch(int64_t num_values, const int16_t* def_levels,
                   const int16_t* rep_levels, const T* values, bool with_index) override;
@@ -1307,6 +1300,13 @@ void TypedColumnWriterImpl<DType>::WriteBatch(int64_t num_values,
   int64_t offset = num_batches * write_batch_size;
   WriteMiniBatch(num_remaining, &def_levels[offset], &rep_levels[offset],
                  &values[value_offset], with_index);
+}
+
+template <typename DType>
+void TypedColumnWriterImpl<DType>::AppendColumnBloomFilter(int64_t num_values, T*values, BlockSplitBloomFilter& blf) {
+    for (int round = 0; round < num_values; round++) {
+      blf.InsertHash(blf.Hash(&values[round]));
+    }
 }
 
 template <typename DType>

@@ -25,6 +25,7 @@
 #include "parquet/platform.h"
 #include "parquet/types.h"
 #include "parquet/parquet_types.h"
+#include "parquet/bloom_filter.h"
 
 namespace arrow {
 
@@ -125,8 +126,6 @@ class PARQUET_EXPORT ColumnWriter {
   virtual int64_t CloseWithIndex() = 0;
 
   virtual void WriteIndex(int64_t file_pos_,  int64_t ci_offset, int64_t oi_offset) = 0;
-
-  virtual void AppendColumnBloomFilter() = 0;
 
   /// \brief The physical Parquet type of the column
   virtual Type::type type() const = 0;
