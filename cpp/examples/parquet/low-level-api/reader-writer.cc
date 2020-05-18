@@ -118,17 +118,13 @@ void writecols(int NUM_ROWS_PER_ROW_GROUP,parquet::RowGroupWriter*& rg_writer,in
 
 void writecolswithindex(int NUM_ROWS_PER_ROW_GROUP,parquet::RowGroupWriter*& rg_writer,int32_t int32factor,int64_t int64factor, float float_factor,double double_factor,int FIXED_LENGTH){
     
-    parquet::BlockSplitBloomFilter bloom_filter_;
-    
-    float fpp = 0.01;
-    bloom_filter_.Init(bloom_filter_.OptimalNumOfBits(NUM_ROWS_PER_ROW_GROUP,fpp));
-    
     // Write the Int32 column
     parquet::Int32Writer* int32_writer =
         static_cast<parquet::Int32Writer*>(rg_writer->NextColumnWithIndex());
     for (int i = 0; i < NUM_ROWS_PER_ROW_GROUP; i++) {
       int32_t value = i*int32factor;
       int32_writer->WriteBatch(1, nullptr, nullptr, &value, true);
+      rg_writer->AppendRowGroupBloomFilter(value);
     }
     
     // Write the Int64 column. Each row has not[repeats twice].

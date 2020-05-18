@@ -525,6 +525,8 @@ class ColumnWriterImpl {
 
   void WriteIndex(int64_t& file_pos_, int64_t& ci_offset, int64_t& oi_offset);
 
+  void WriteBloomFilterOffset(int64_t& file_pos);
+
  protected:
   virtual std::shared_ptr<Buffer> GetValuesBuffer() = 0;
 
@@ -951,6 +953,10 @@ void ColumnWriterImpl::WriteIndex(int64_t& file_pos_, int64_t& ci_offset, int64_
     pager_->WriteIndex(file_pos_, ci_offset, oi_offset, column_index_, offset_index_);
 }
 
+void ColumnWriterImpl::WriteBloomFilterOffset(int64_t& file_pos_) {
+   metadata_->WriteBloomFilterOffset(file_pos_);
+}
+
 void ColumnWriterImpl::FlushBufferedDataPages() {
   // Write all outstanding data to a new page
   if (num_buffered_values_ > 0) {
@@ -1013,6 +1019,10 @@ class TypedColumnWriterImpl : public ColumnWriterImpl, public TypedColumnWriter<
   void WriteIndex(int64_t file_pos_, int64_t ci_offset, int64_t oi_offset) override { 
     return ColumnWriterImpl::WriteIndex(file_pos_,  ci_offset, oi_offset); 
   }
+
+  void WriteBloomFilterOffset(int64_t& file_pos) override {
+     ColumnWriterImpl::WriteBloomFilterOffset(file_pos);
+  } 
 
   void AppendColumnBloomFilter(int64_t num_values, T*values, BlockSplitBloomFilter& blf);
 
@@ -1304,9 +1314,6 @@ void TypedColumnWriterImpl<DType>::WriteBatch(int64_t num_values,
 
 template <typename DType>
 void TypedColumnWriterImpl<DType>::AppendColumnBloomFilter(int64_t num_values, T*values, BlockSplitBloomFilter& blf) {
-    for (int round = 0; round < num_values; round++) {
-      blf.InsertHash(blf.Hash(&values[round]));
-    }
 }
 
 template <typename DType>

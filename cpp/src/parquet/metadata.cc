@@ -818,6 +818,10 @@ void ColumnChunkMetaDataBuilder::WriteIndex(int64_t& file_pos_, int64_t& ci_offs
    impl_->WriteIndex(file_pos_,ci_offset, oi_offset,ci_len,oi_len);
 }
 
+void ColumnChunkMetaDataBuilder::WriteBloomFilterOffset(int64_t& file_pos_) {
+   impl_->WriteBloomFilterOffset(file_pos_);
+}
+
 const ColumnDescriptor* ColumnChunkMetaDataBuilder::descr() const {
   return impl_->descr();
 }

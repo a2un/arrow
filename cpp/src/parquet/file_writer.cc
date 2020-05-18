@@ -49,9 +49,15 @@ void RowGroupWriter::Close() {
   }
 }
 
-void RowGroupWriter::AppendRowGroupBloomFilter() {
+void RowGroupWriter::AppendRowGroupBloomFilter(int32_t values) {
    if (contents_) {
-      contents_->AppendRowGroupBloomFilter();
+      contents_->AppendRowGroupBloomFilter(values);
+   }
+}
+
+void RowGroupWriter::InitBloomFilter(int num_rows) {
+   if (contents_) {
+      contents_->InitBloomFilter(num_rows);
    }
 }
 
@@ -97,7 +103,9 @@ class RowGroupSerializer : public RowGroupWriter::Contents {
         closed_(false),
         next_column_index_(0),
         num_rows_(0),
-        buffered_row_group_(buffered_row_group) {
+        buffered_row_group_(buffered_row_group),
+        blf_ (metadata_->num_columns()) {
+    
     if (buffered_row_group) {
       InitColumns();
     } else {
@@ -158,10 +166,7 @@ class RowGroupSerializer : public RowGroupWriter::Contents {
       total_bytes_written_ += column_writers_[0]->CloseWithIndex();
       sink_->Tell(&file_pos_);
       column_writers_[0]->WriteIndex(file_pos_,column_index_offset,offset_index_offset);
-      current_col_index = 0;
     }
-
-    AppendRowGroupBloomFilter();
 
     ++next_column_index_;
 
@@ -170,6 +175,9 @@ class RowGroupSerializer : public RowGroupWriter::Contents {
         PageWriter::Open(sink_, properties_->compression(column_descr->path()), col_meta,
                          properties_->memory_pool());
     column_writers_[0] = ColumnWriter::Make(col_meta, std::move(pager), properties_);
+
+    blf_[next_column_index_].Init(blf_[next_column_index_].OptimalNumOfBits((uint32_t) num_rows(), false_positive_prob));
+    
     return column_writers_[0].get();
   }
 
@@ -214,22 +222,50 @@ class RowGroupSerializer : public RowGroupWriter::Contents {
 
       for (size_t i = 0; i < column_writers_.size(); i++) {
         if (column_writers_[i]) {
-          current_col_index = i;
           total_bytes_written_ += (use_index)? column_writers_[i]->Close(): column_writers_[i]->CloseWithIndex();
           column_writers_[i].reset();
         }
       }
-      AppendRowGroupBloomFilter();
+      WriteBloomFilterOffsets();
       column_writers_.clear();
 
       // Ensures all columns have been written
       metadata_->set_num_rows(num_rows_);
       metadata_->Finish(total_bytes_written_);
+
+      
     }
   }
 
-  void AppendRowGroupBloomFilter() override {
-      
+  void AppendRowGroupBloomFilter(int32_t values) override {
+      blf_[next_column_index_].InsertHash(blf_[next_column_index_].Hash(values));
+  }
+
+  void InitBloomFilter(int num_rows) override {
+  }
+
+  void WriteBloomFilterOffsets(){
+      InitColumns();
+      int64_t filepos;
+      for (size_t i = 0; i < column_writers_.size(); i++) {
+        sink_->Tell(&filepos);
+        
+        format::BloomFilterHeader blfh;
+        blfh.__set_numBytes(blf_[i].GetBitsetSize());
+        blfh.__set_hash(blf_[i].GetHashStrategy());
+        blfh.__set_algorithm(blf_[i].GetHashAlgorithm());
+        blfh.__set_compression(blf_[i].GetBFCompression());
+        
+        std::unique_ptr<ThriftSerializer> thrift_serializer_;
+        thrift_serializer_.reset(new ThriftSerializer);
+        thrift_serializer_->Serialize(&blfh, sink_.get());
+
+        blf_[i].WriteTo(sink_.get());
+        if (column_writers_[i]) {
+          column_writers_[i]->WriteBloomFilterOffset(filepos);
+          column_writers_[i].reset();
+        }
+      }
   }
 
  private:
@@ -242,6 +278,8 @@ class RowGroupSerializer : public RowGroupWriter::Contents {
   mutable int64_t num_rows_;
   bool buffered_row_group_;
   bool use_index = false;
+
+  double false_positive_prob = 0.01;
 
   void CheckRowsWritten() const {
     // verify when only one column is written at a time
@@ -280,7 +318,7 @@ class RowGroupSerializer : public RowGroupWriter::Contents {
   std::vector<std::shared_ptr<ColumnWriter>> column_writers_;
   int64_t column_index_offset = 0;
   int64_t offset_index_offset = 0;
-  int64_t current_col_index = 0;
+  std::vector<BlockSplitBloomFilter> blf_;
 };
 
 // ----------------------------------------------------------------------
@@ -339,12 +377,6 @@ class FileSerializer : public ParquetFileWriter::Contents {
         sink_, rg_metadata, properties_.get(), buffered_row_group));
     row_group_writer_.reset(new RowGroupWriter(std::move(contents)));
     return row_group_writer_.get();
-  }
-
-  void AppendRowGroupBloomFilter() override {
-     if (row_group_writer_) {
-        row_group_writer_->AppendRowGroupBloomFilter();
-     }
   }
 
   RowGroupWriter* AppendRowGroup() override { return AppendRowGroup(false); }
@@ -491,9 +523,6 @@ RowGroupWriter* ParquetFileWriter::AppendRowGroup(int64_t num_rows) {
   return AppendRowGroup();
 }
 
-void ParquetFileWriter::AppendRowGroupBloomFilter() {
-   contents_->AppendRowGroupBloomFilter();
-}
 
 const std::shared_ptr<WriterProperties>& ParquetFileWriter::properties() const {
   return contents_->properties();

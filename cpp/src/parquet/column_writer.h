@@ -127,6 +127,8 @@ class PARQUET_EXPORT ColumnWriter {
 
   virtual void WriteIndex(int64_t file_pos_,  int64_t ci_offset, int64_t oi_offset) = 0;
 
+  virtual void WriteBloomFilterOffset(int64_t& file_pos) = 0;
+
   /// \brief The physical Parquet type of the column
   virtual Type::type type() const = 0;
 
