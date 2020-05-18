@@ -722,6 +722,11 @@ class SerializedRowGroup : public RowGroupReader::Contents {
     DeserializeThriftMsg(reinterpret_cast<const uint8_t*>(page_buffer.data()), &length, offset_index);
   }
 
+  void DeserializeBloomFilter(const ColumnChunkMetaData& col_chunk, parquet::BlockSplitBloomFilter& blf, std::shared_ptr<ArrowInputFile>& source_, ReaderProperties& properties_) {
+      int64_t blf_offset = col_chunk.bloom_filter_offset();
+      blf = BlockSplitBloomFilter::Deserialize(source_.get());
+  }
+
   std::unique_ptr<PageReader> GetColumnPageReaderWithIndex(int column_index, void* predicate, int64_t& min_index, 
                               int predicate_col, int64_t& row_index,Type::type type_num, bool with_binarysearch, int64_t& count_pages_scanned,
                               int64_t& total_num_pages, int64_t& last_first_row) {

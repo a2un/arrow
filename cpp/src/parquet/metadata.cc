@@ -218,6 +218,10 @@ class ColumnChunkMetaData::ColumnChunkMetaDataImpl {
   inline int64_t column_index_length() const {
     return column_->column_index_length;
   }
+
+  inline int64_t bloom_filter_offset() const {
+    return column_->meta_data.bloom_filter_offset;
+  }
   
  private:
   mutable std::shared_ptr<Statistics> possible_stats_;
@@ -310,6 +314,10 @@ int64_t ColumnChunkMetaData::offset_index_length() const {
 
 int64_t ColumnChunkMetaData::column_index_length() const {
   return impl_->column_index_length();
+}
+
+int64_t ColumnChunkMetaData::bloom_filter_offset() const {
+   return impl_->bloom_filter_offset();
 }
 
 

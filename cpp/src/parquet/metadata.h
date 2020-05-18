@@ -136,6 +136,7 @@ class PARQUET_EXPORT ColumnChunkMetaData {
   int64_t offset_index_offset() const;
   int64_t column_index_length() const;
   int64_t offset_index_length() const;
+  int64_t bloom_filter_offset() const;
 
  private:
   explicit ColumnChunkMetaData(const void* metadata, const ColumnDescriptor* descr,
