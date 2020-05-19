@@ -133,6 +133,7 @@ void writecolswithindex(int NUM_ROWS_PER_ROW_GROUP,parquet::RowGroupWriter*& rg_
     for (int i = 0; i < NUM_ROWS_PER_ROW_GROUP; i++) {
       int64_t value = i*int64factor;
       int64_writer->WriteBatch(1, nullptr,nullptr, &value, true);
+      rg_writer->AppendRowGroupBloomFilter(value);
     }
 
     // Write the Float column
@@ -149,6 +150,7 @@ void writecolswithindex(int NUM_ROWS_PER_ROW_GROUP,parquet::RowGroupWriter*& rg_
     for (int i = 0; i < NUM_ROWS_PER_ROW_GROUP; i++) {
       double value = i * double_factor;//1.1111111;
       double_writer->WriteBatch(1, nullptr, nullptr, &value, true);
+      rg_writer->AppendRowGroupBloomFilter(value);
     }
 
     // Write the ByteArray column. Make every alternate values NULL
@@ -168,11 +170,13 @@ void writecolswithindex(int NUM_ROWS_PER_ROW_GROUP,parquet::RowGroupWriter*& rg_
         value.ptr = reinterpret_cast<const uint8_t*>(&hello[0]);
         value.len = FIXED_LENGTH;
         ba_writer->WriteBatch(1, &definition_level, nullptr, &value, true);
+        rg_writer->AppendRowGroupBloomFilter(&value);
       } else {
         int16_t definition_level = 1;
         value.ptr = reinterpret_cast<const uint8_t*>(&hello[0]);
         value.len = FIXED_LENGTH;
         ba_writer->WriteBatch(1, &definition_level, nullptr, &value, true);
+        rg_writer->AppendRowGroupBloomFilter(&value);
       }
     }
 }

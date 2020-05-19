@@ -748,8 +748,10 @@ class SerializedRowGroup : public RowGroupReader::Contents {
     if ( has_page_index ) {
         parquet::format::ColumnIndex col_index;
         parquet::format::OffsetIndex offset_index;
+        BlockSplitBloomFilter blf;
         DeserializeColumnIndex(*reinterpret_cast<ColumnChunkMetaData*>(col.get()),&col_index, source_, properties_);
         DeserializeOffsetIndex(*reinterpret_cast<ColumnChunkMetaData*>(col.get()),&offset_index, source_, properties_);
+        DeserializeBloomFilter(*reinterpret_cast<ColumnChunkMetaData*>(col.get()),blf,source_,properties_);
         total_num_pages = offset_index.page_locations.size();
         last_first_row = offset_index.page_locations[offset_index.page_locations.size()-1].first_row_index;
         if ( predicate_col == column_index )

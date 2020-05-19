@@ -48,6 +48,14 @@ class PARQUET_EXPORT RowGroupWriter {
 
     virtual void AppendRowGroupBloomFilter(int32_t values) = 0;
 
+    virtual void AppendRowGroupBloomFilter(int64_t values) = 0;
+    
+    virtual void AppendRowGroupBloomFilter(float values) = 0;
+
+    virtual void AppendRowGroupBloomFilter(double values) = 0;
+
+    virtual void AppendRowGroupBloomFilter(ByteArray* values) = 0;
+
     virtual void InitBloomFilter(int num_rows) = 0;
 
     // to be used only with ParquetFileWriter::AppendBufferedRowGroup
@@ -76,6 +84,14 @@ class PARQUET_EXPORT RowGroupWriter {
   ColumnWriter* NextColumnWithIndex();
 
   void AppendRowGroupBloomFilter(int32_t values);
+
+  void AppendRowGroupBloomFilter(int64_t values);
+  
+  void AppendRowGroupBloomFilter(float values);
+  
+  void AppendRowGroupBloomFilter(double values);
+  
+  void AppendRowGroupBloomFilter(ByteArray* values);
 
   void InitBloomFilter(int num_rows);
   

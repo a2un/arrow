@@ -55,6 +55,30 @@ void RowGroupWriter::AppendRowGroupBloomFilter(int32_t values) {
    }
 }
 
+void RowGroupWriter::AppendRowGroupBloomFilter(int64_t values) {
+   if (contents_) {
+      contents_->AppendRowGroupBloomFilter(values);
+   }
+}
+
+void RowGroupWriter::AppendRowGroupBloomFilter(float values) {
+   if (contents_) {
+      contents_->AppendRowGroupBloomFilter(values);
+   }
+}
+
+void RowGroupWriter::AppendRowGroupBloomFilter(double values) {
+   if (contents_) {
+      contents_->AppendRowGroupBloomFilter(values);
+   }
+}
+
+void RowGroupWriter::AppendRowGroupBloomFilter(ByteArray* values) {
+   if (contents_) {
+      contents_->AppendRowGroupBloomFilter(values);
+   }
+}
+
 void RowGroupWriter::InitBloomFilter(int num_rows) {
    if (contents_) {
       contents_->InitBloomFilter(num_rows);
@@ -240,6 +264,23 @@ class RowGroupSerializer : public RowGroupWriter::Contents {
   void AppendRowGroupBloomFilter(int32_t values) override {
       blf_[next_column_index_].InsertHash(blf_[next_column_index_].Hash(values));
   }
+
+  void AppendRowGroupBloomFilter(int64_t values) override {
+      blf_[next_column_index_].InsertHash(blf_[next_column_index_].Hash(values));
+  }
+
+  void AppendRowGroupBloomFilter(float values) override {
+      blf_[next_column_index_].InsertHash(blf_[next_column_index_].Hash(values));
+  }
+
+  void AppendRowGroupBloomFilter(double values) override {
+      blf_[next_column_index_].InsertHash(blf_[next_column_index_].Hash(values));
+  }
+
+  void AppendRowGroupBloomFilter(ByteArray* values) override {
+      blf_[next_column_index_].InsertHash(blf_[next_column_index_].Hash(values));
+  }
+
 
   void InitBloomFilter(int num_rows) override {
   }
