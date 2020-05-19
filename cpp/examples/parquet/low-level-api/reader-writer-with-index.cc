@@ -482,6 +482,7 @@ int64_t first_pass_for_predicate_only(std::shared_ptr<parquet::RowGroupReader> r
       int ind = 0;
       int64_t row_counter = 0;
 
+      if ( row_index != -1 ) {
       if(with_index){
         ind = row_index;
         row_counter = 0;
@@ -502,7 +503,7 @@ int64_t first_pass_for_predicate_only(std::shared_ptr<parquet::RowGroupReader> r
          col_row_counts[col_id]++;
         } 
       }
-
+      }
       // Read all the rows in the column
       std::cout << "Column Type: " << predicate_column_reader->type() << std::endl;
       std::cout << "column id:" << col_id << " page index:" << page_index << "number of column indices scanned: " << count_pages_scanned <<

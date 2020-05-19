@@ -248,7 +248,7 @@ class SerializedRowGroup : public RowGroupReader::Contents {
               int32_t v = *((int32_t*) predicate);
               
               if (with_bloom_filter && !blf.FindHash(blf.Hash(v))) {
-                 return;
+                 row_index = -1; return;
               }
 
               if(sorted && with_binarysearch){
@@ -306,7 +306,7 @@ class SerializedRowGroup : public RowGroupReader::Contents {
          {
              int64_t v = *((int64_t*) predicate);
              if (with_bloom_filter && !blf.FindHash(blf.Hash(v))) {
-                 return;
+                 row_index = -1; return;
              }
              
              if(sorted && with_binarysearch){
@@ -418,7 +418,7 @@ class SerializedRowGroup : public RowGroupReader::Contents {
          {
              float v = *((float*) predicate);
              if (with_bloom_filter && !blf.FindHash(blf.Hash(v))) {
-                 return;
+                 row_index = -1; return;
              }
              
              if(sorted && with_binarysearch){
@@ -481,7 +481,7 @@ class SerializedRowGroup : public RowGroupReader::Contents {
          {
              double v = *((double*) predicate);
              if (with_bloom_filter && !blf.FindHash(blf.Hash(v))) {
-                 return;
+                 row_index = -1; return;
              }
              
              if(sorted && with_binarysearch){
@@ -546,9 +546,9 @@ class SerializedRowGroup : public RowGroupReader::Contents {
              uint8_t ptr = *v;
              ByteArray pba((uint32_t)strlen(v),&ptr);
              if (with_bloom_filter && !blf.FindHash(blf.Hash(&pba))) {
-                 return;
+                 row_index = -1; return;
              }
-             
+
              std::string str(v);
              if(sorted && with_binarysearch){
                   if(col_index.min_values.size() >= 2){
@@ -610,7 +610,7 @@ class SerializedRowGroup : public RowGroupReader::Contents {
              uint8_t ptr = *v;
              ByteArray pba((uint32_t)strlen(v),&ptr);
              if (with_bloom_filter && !blf.FindHash(blf.Hash(&pba))) {
-                 return;
+                 row_index = -1; return;
              }
 
              std::string str(v);
