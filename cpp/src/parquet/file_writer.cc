@@ -249,19 +249,21 @@ class RowGroupSerializer : public RowGroupWriter::Contents {
       int64_t filepos;
       for (size_t i = 0; i < column_writers_.size(); i++) {
         sink_->Tell(&filepos);
-        
-        format::BloomFilterHeader blfh;
-        blfh.__set_numBytes(blf_[i].GetBitsetSize());
-        blfh.__set_hash(blf_[i].GetHashStrategy());
-        blfh.__set_algorithm(blf_[i].GetHashAlgorithm());
-        blfh.__set_compression(blf_[i].GetBFCompression());
-        
-        std::unique_ptr<ThriftSerializer> thrift_serializer_;
-        thrift_serializer_.reset(new ThriftSerializer);
-        thrift_serializer_->Serialize(&blfh, sink_.get());
-
-        blf_[i].WriteTo(sink_.get());
         if (column_writers_[i]) {
+          if (false) {
+            format::BloomFilterHeader blfh;
+            blfh.__set_numBytes(blf_[i].GetBitsetSize());
+            blfh.__set_hash(blf_[i].GetHashStrategy());
+            blfh.__set_algorithm(blf_[i].GetHashAlgorithm());
+            blfh.__set_compression(blf_[i].GetBFCompression());
+        
+            std::unique_ptr<ThriftSerializer> thrift_serializer_;
+            thrift_serializer_.reset(new ThriftSerializer);
+            thrift_serializer_->Serialize(&blfh, sink_.get());
+          }
+
+          blf_[i].WriteTo(sink_.get());
+
           column_writers_[i]->WriteBloomFilterOffset(filepos);
           column_writers_[i].reset();
         }
