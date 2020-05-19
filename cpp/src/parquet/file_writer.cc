@@ -192,6 +192,12 @@ class RowGroupSerializer : public RowGroupWriter::Contents {
       column_writers_[0]->WriteIndex(file_pos_,column_index_offset,offset_index_offset);
     }
 
+    //total_bytes_written_ += blf_[next_column_index_].GetBitsetSize();
+    if ( column_writers_[0] ) {
+      blf_[next_column_index_].Init(blf_[next_column_index_].OptimalNumOfBits(column_writers_[0]->rows_written() , false_positive_prob));
+      all_used_cws_.push_back(column_writers_[0]);
+    }
+
     ++next_column_index_;
 
     const ColumnDescriptor* column_descr = col_meta->descr();
@@ -200,7 +206,6 @@ class RowGroupSerializer : public RowGroupWriter::Contents {
                          properties_->memory_pool());
     column_writers_[0] = ColumnWriter::Make(col_meta, std::move(pager), properties_);
 
-    blf_[next_column_index_].Init(blf_[next_column_index_].OptimalNumOfBits((uint32_t) num_rows(), false_positive_prob));
     
     return column_writers_[0].get();
   }
@@ -262,35 +267,35 @@ class RowGroupSerializer : public RowGroupWriter::Contents {
   }
 
   void AppendRowGroupBloomFilter(int32_t values) override {
-      blf_[next_column_index_].InsertHash(blf_[next_column_index_].Hash(values));
+      blf_[next_column_index_-1].InsertHash(blf_[next_column_index_-1].Hash(values));
   }
 
   void AppendRowGroupBloomFilter(int64_t values) override {
-      blf_[next_column_index_].InsertHash(blf_[next_column_index_].Hash(values));
+      blf_[next_column_index_-1].InsertHash(blf_[next_column_index_-1].Hash(values));
   }
 
   void AppendRowGroupBloomFilter(float values) override {
-      blf_[next_column_index_].InsertHash(blf_[next_column_index_].Hash(values));
+      blf_[next_column_index_-1].InsertHash(blf_[next_column_index_-1].Hash(values));
   }
 
   void AppendRowGroupBloomFilter(double values) override {
-      blf_[next_column_index_].InsertHash(blf_[next_column_index_].Hash(values));
+      blf_[next_column_index_-1].InsertHash(blf_[next_column_index_-1].Hash(values));
   }
 
   void AppendRowGroupBloomFilter(ByteArray* values) override {
-      blf_[next_column_index_].InsertHash(blf_[next_column_index_].Hash(values));
+      blf_[next_column_index_-1].InsertHash(blf_[next_column_index_-1].Hash(values));
   }
 
 
   void InitBloomFilter(int num_rows) override {
+      blf_[next_column_index_].Init(blf_[next_column_index_].OptimalNumOfBits(num_rows , false_positive_prob));
   }
 
   void WriteBloomFilterOffsets(){
-      InitColumns();
       int64_t filepos;
-      for (size_t i = 0; i < column_writers_.size(); i++) {
+      for (size_t i = 0; i < all_used_cws_.size(); i++) {
         sink_->Tell(&filepos);
-        if (column_writers_[i]) {
+        if (all_used_cws_[i]) {
           if (false) {
             format::BloomFilterHeader blfh;
             blfh.__set_numBytes(blf_[i].GetBitsetSize());
@@ -305,8 +310,8 @@ class RowGroupSerializer : public RowGroupWriter::Contents {
 
           blf_[i].WriteTo(sink_.get());
 
-          column_writers_[i]->WriteBloomFilterOffset(filepos);
-          column_writers_[i].reset();
+          all_used_cws_[i]->WriteBloomFilterOffset(filepos);
+          all_used_cws_[i].reset();
         }
       }
   }
@@ -359,6 +364,7 @@ class RowGroupSerializer : public RowGroupWriter::Contents {
   }
 
   std::vector<std::shared_ptr<ColumnWriter>> column_writers_;
+  std::vector<std::shared_ptr<ColumnWriter>> all_used_cws_;
   int64_t column_index_offset = 0;
   int64_t offset_index_offset = 0;
   std::vector<BlockSplitBloomFilter> blf_;

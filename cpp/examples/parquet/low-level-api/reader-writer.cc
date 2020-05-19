@@ -118,6 +118,7 @@ void writecols(int NUM_ROWS_PER_ROW_GROUP,parquet::RowGroupWriter*& rg_writer,in
 
 void writecolswithindex(int NUM_ROWS_PER_ROW_GROUP,parquet::RowGroupWriter*& rg_writer,int32_t int32factor,int64_t int64factor, float float_factor,double double_factor,int FIXED_LENGTH){
     
+    rg_writer->InitBloomFilter(NUM_ROWS_PER_ROW_GROUP);
     // Write the Int32 column
     parquet::Int32Writer* int32_writer =
         static_cast<parquet::Int32Writer*>(rg_writer->NextColumnWithIndex());
@@ -142,6 +143,7 @@ void writecolswithindex(int NUM_ROWS_PER_ROW_GROUP,parquet::RowGroupWriter*& rg_
     for (int i = 0; i < NUM_ROWS_PER_ROW_GROUP; i++) {
       float value = static_cast<float>(i) * float_factor;//1.1f;
       float_writer->WriteBatch(1, nullptr, nullptr, &value, true);
+      rg_writer->AppendRowGroupBloomFilter(value);
     }
 
     // Write the Double column
