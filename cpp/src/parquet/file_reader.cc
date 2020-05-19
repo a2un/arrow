@@ -83,24 +83,24 @@ std::unique_ptr<PageReader> RowGroupReader::GetColumnPageReader(int i) {
 
 std::unique_ptr<PageReader> RowGroupReader::GetColumnPageReaderWithIndex(int i,void* predicate, int64_t& min_index,
                                             int predicate_col, int64_t& row_index,Type::type type_num, bool binary_search, int64_t& count_pages_scanned,
-                                            int64_t& total_num_pages, int64_t& last_first_row) {
+                                            int64_t& total_num_pages, int64_t& last_first_row, bool with_bloom_filter) {
   DCHECK(i < metadata()->num_columns())
       << "The RowGroup only has " << metadata()->num_columns()
       << "columns, requested column: " << i;
   return contents_->GetColumnPageReaderWithIndex(i,predicate, min_index, predicate_col, row_index,type_num, binary_search, count_pages_scanned,
-                                            total_num_pages, last_first_row);
+                                            total_num_pages, last_first_row, with_bloom_filter);
 }
 
 std::shared_ptr<ColumnReader> RowGroupReader::ColumnWithIndex(int i,void* predicate, int64_t& min_index, int predicate_col, 
                                   int64_t& row_index,Type::type type_num, bool binary_search, int64_t& count_pages_scanned,
-                                            int64_t& total_num_pages, int64_t& last_first_row) {
+                                            int64_t& total_num_pages, int64_t& last_first_row, bool with_bloom_filter) {
   DCHECK(i < metadata()->num_columns())
       << "The RowGroup only has " << metadata()->num_columns()
       << "columns, requested column: " << i;
   const ColumnDescriptor* descr = metadata()->schema()->Column(i);
 
   std::unique_ptr<PageReader> page_reader = contents_->GetColumnPageReaderWithIndex(i,predicate, min_index, predicate_col, row_index,type_num, binary_search, count_pages_scanned,
-                                            total_num_pages, last_first_row);
+                                            total_num_pages, last_first_row, with_bloom_filter);
   return ColumnReader::Make(
       descr, std::move(page_reader),
       const_cast<ReaderProperties*>(contents_->properties())->memory_pool());
@@ -236,7 +236,8 @@ class SerializedRowGroup : public RowGroupReader::Contents {
   }
 
   void GetPageIndex(void* predicate, int64_t& min_index,int64_t& row_index, parquet::format::ColumnIndex col_index, 
-                    parquet::format::OffsetIndex offset_index,Type::type type_num, bool with_binarysearch, int64_t& count_pages_scanned) const {
+                    parquet::format::OffsetIndex offset_index,Type::type type_num, bool with_binarysearch, int64_t& count_pages_scanned,
+                    parquet::BlockSplitBloomFilter& blf, bool with_bloom_filter) const {
       bool sorted = isSorted(col_index,offset_index,type_num);
       switch(type_num) {
          case Type::BOOLEAN:{
@@ -245,6 +246,11 @@ class SerializedRowGroup : public RowGroupReader::Contents {
          }
          case Type::INT32:{
               int32_t v = *((int32_t*) predicate);
+              
+              if (with_bloom_filter && !blf.FindHash(blf.Hash(v))) {
+                 return;
+              }
+
               if(sorted && with_binarysearch){
                   if(col_index.min_values.size() >= 2){
                     uint64_t last_index = col_index.min_values.size()-1;
@@ -299,6 +305,10 @@ class SerializedRowGroup : public RowGroupReader::Contents {
          case Type::INT64:
          {
              int64_t v = *((int64_t*) predicate);
+             if (with_bloom_filter && !blf.FindHash(blf.Hash(v))) {
+                 return;
+             }
+             
              if(sorted && with_binarysearch){
                   if(col_index.min_values.size() >= 2){
                     uint64_t last_index = col_index.min_values.size()-1;
@@ -407,6 +417,10 @@ class SerializedRowGroup : public RowGroupReader::Contents {
          case Type::FLOAT:
          {
              float v = *((float*) predicate);
+             if (with_bloom_filter && !blf.FindHash(blf.Hash(v))) {
+                 return;
+             }
+             
              if(sorted && with_binarysearch){
                   if(col_index.min_values.size() >= 2){
                     uint64_t last_index = col_index.min_values.size()-1;
@@ -466,6 +480,10 @@ class SerializedRowGroup : public RowGroupReader::Contents {
          case Type::DOUBLE:
          {
              double v = *((double*) predicate);
+             if (with_bloom_filter && !blf.FindHash(blf.Hash(v))) {
+                 return;
+             }
+             
              if(sorted && with_binarysearch){
                   if(col_index.min_values.size() >= 2){
                     uint64_t last_index = col_index.min_values.size()-1;
@@ -524,6 +542,13 @@ class SerializedRowGroup : public RowGroupReader::Contents {
          case Type::BYTE_ARRAY:
          {
              char* v = (char*) predicate;
+
+             uint8_t ptr = *v;
+             ByteArray pba((uint32_t)strlen(v),&ptr);
+             if (with_bloom_filter && !blf.FindHash(blf.Hash(&pba))) {
+                 return;
+             }
+             
              std::string str(v);
              if(sorted && with_binarysearch){
                   if(col_index.min_values.size() >= 2){
@@ -581,6 +606,13 @@ class SerializedRowGroup : public RowGroupReader::Contents {
          case Type::FIXED_LEN_BYTE_ARRAY:
          {
              char* v = (char*) predicate;
+
+             uint8_t ptr = *v;
+             ByteArray pba((uint32_t)strlen(v),&ptr);
+             if (with_bloom_filter && !blf.FindHash(blf.Hash(&pba))) {
+                 return;
+             }
+
              std::string str(v);
              if(sorted && with_binarysearch){
                   if(col_index.min_values.size() >= 2){
@@ -730,7 +762,7 @@ class SerializedRowGroup : public RowGroupReader::Contents {
 
   std::unique_ptr<PageReader> GetColumnPageReaderWithIndex(int column_index, void* predicate, int64_t& min_index, 
                               int predicate_col, int64_t& row_index,Type::type type_num, bool with_binarysearch, int64_t& count_pages_scanned,
-                              int64_t& total_num_pages, int64_t& last_first_row) {
+                              int64_t& total_num_pages, int64_t& last_first_row, bool with_bloom_filter) {
     // Read column chunk from the file
     auto col = row_group_metadata_->ColumnChunk(column_index);
 
@@ -756,7 +788,7 @@ class SerializedRowGroup : public RowGroupReader::Contents {
         total_num_pages = offset_index.page_locations.size();
         last_first_row = offset_index.page_locations[offset_index.page_locations.size()-1].first_row_index;
         if ( predicate_col == column_index )
-            GetPageIndex(predicate, min_index,row_index, col_index,offset_index,type_num,with_binarysearch, count_pages_scanned);
+            GetPageIndex(predicate, min_index,row_index, col_index,offset_index,type_num,with_binarysearch, count_pages_scanned, blf, with_bloom_filter);
         else 
            GetPageWithRowIndex(min_index, offset_index, row_index);
     }
