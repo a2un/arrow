@@ -221,94 +221,94 @@ int parquet_reader(int argc,char** argv) {
           << (times_by_type[col_id].wo_totaltime/(num_runs*num_queries)) << "avg num of datapage indices scanned " << (times_by_type[col_id].wo_total_pages_scanned/(num_runs*num_queries)) << std::endl;
           runfile << std::setprecision(3)  <<"POINT QUERY: minimum average time w index " 
           << (times_by_type[col_id].w_totaltime/(num_runs*num_queries)) << "avg num of datapage indices scanned " << (times_by_type[col_id].w_total_pages_scanned/(num_runs*num_queries)) << std::endl;
-          runfile << std::setprecision(3)  <<"POINT QUERY: minimum average time w index without binary " 
+          runfile << std::setprecision(3)  <<"POINT QUERY: minimum average time w index without bloomfilter " 
           << (times_by_type[col_id].b_totaltime/(num_runs*num_queries)) << "avg num of datapage indices scanned " << (times_by_type[col_id].b_total_pages_scanned/(num_runs*num_queries)) << std::endl;
         }
         runfile << "###############################################################" << std::endl;
-        runfile << "#################### RUNNING RANGE QUERIES ####################" << std::endl; 
+      //   runfile << "#################### RUNNING RANGE QUERIES ####################" << std::endl; 
          
         
-        for ( int col_id =0; col_id < num_columns; col_id++){
-          for(int i=0; i < num_runs; i++){
-            int predicateindex = 0;
-            char** predicates = (char**)malloc(sizeof(char*)*num_queries);
-          // rangequeries
-            while ( predicateindex <  num_queries) {
-              // sleep(1);
-              srand(time(NULL));
-              char* predicate_val = (char*)malloc(intlog(num_rows)+1);
-              int predicate = rand()%num_rows;
-              convertToCharptr(predicate,predicate_val,intlog(num_rows));
-              predicates[predicateindex] = predicate_val;
-              runfile << "#############" << " col_num " << col_id << " run number "<< i << " Query number " << predicateindex << " predicate: " << predicates[predicateindex] << " #############"  << std::endl;
-              trun avgtime = run_for_one_predicate(num_columns,num_row_groups,parquet_reader,col_id,predicates,predicateindex,-1,true,true);
-              times_by_type[col_id].wo_index += avgtime.wo_totaltime;
-              times_by_type[col_id].w_index += avgtime.w_totaltime;
-              times_by_type[col_id].b_index += avgtime.b_totaltime;
-              times_by_type[col_id].wo_total_pages_scanned += avgtime.wo_total_pages_scanned;
-              times_by_type[col_id].w_total_pages_scanned += avgtime.w_total_pages_scanned;
-              times_by_type[col_id].b_total_pages_scanned += avgtime.b_total_pages_scanned;
-              convertToCharptr(predicate+20,predicate_val,intlog(num_rows));
-              predicates[predicateindex] = predicate_val;
-              runfile << "#############" << " col_num " << col_id << " run number "<< i << " Query number " << predicateindex << " predicate: " << predicates[predicateindex] << " #############"  << std::endl;
-              avgtime = run_for_one_predicate(num_columns,num_row_groups,parquet_reader,col_id,predicates,predicateindex,1,true,true);
-              times_by_type[col_id].wo_index += avgtime.wo_totaltime;
-              times_by_type[col_id].w_index += avgtime.w_totaltime;
-              times_by_type[col_id].b_index += avgtime.b_totaltime;
-              times_by_type[col_id].wo_total_pages_scanned += avgtime.wo_total_pages_scanned;
-              times_by_type[col_id].w_total_pages_scanned += avgtime.w_total_pages_scanned;
-              times_by_type[col_id].b_total_pages_scanned += avgtime.b_total_pages_scanned;
-              predicateindex++;
-            }
-          }
-        }
-        for (int col_id = 0; col_id < num_columns; col_id++ ) {
-          runfile<< "col_num " << col_id << std::endl;
-          runfile << std::setprecision(3)  << "RANGE QUERY: minimum average time w/o index " 
-          << (times_by_type[col_id].wo_index/(num_runs*num_queries)) << "avg num of datapage indices scanned " << (times_by_type[col_id].wo_total_pages_scanned/(num_runs*num_queries)) << std::endl;
-          runfile << std::setprecision(3)  << "RANGE QUERY: minimum average time w index " 
-          << (times_by_type[col_id].w_index/(num_runs*num_queries)) << "avg num of datapage indices scanned " << (times_by_type[col_id].w_total_pages_scanned/(num_runs*num_queries)) << std::endl;
-          runfile << std::setprecision(3)  <<"POINT QUERY: minimum average time w index without binary " 
-          << (times_by_type[col_id].b_index/(num_runs*num_queries)) << "avg num of datapage indices scanned " << (times_by_type[col_id].b_total_pages_scanned/(num_runs*num_queries)) << std::endl;
-        }
-       runfile << "###############################################################" << std::endl;
-       runfile << "#################### RUNNING Full Scan QUERIES ####################" << std::endl; 
-       for ( int col_id =0; col_id < num_columns; col_id++){
-          for(int i=0; i < num_runs; i++){
-            int predicateindex = 0;
-            char** predicates = (char**)malloc(sizeof(char*)*num_queries);
-          // rangequeries
-            while ( predicateindex <  num_queries) {
-              // sleep(1);
-              srand(time(NULL));
-              char* predicate_val = (char*)malloc(intlog(num_rows)+1);
-              int64_t predicate = 5000000000;
-              convertToCharptr(predicate,predicate_val,intlog(num_rows));
-              predicates[predicateindex] = predicate_val;
-              runfile << "#############" << " col_num " << col_id << " run number "<< i << " Query number " << predicateindex << " predicate: " << predicates[predicateindex] << " #############"  << std::endl;
-              trun avgtime = run_for_one_predicate(num_columns,num_row_groups,parquet_reader,col_id,predicates,predicateindex,-1,true,true);
-              times_by_type[col_id].wo_index += avgtime.wo_totaltime;
-              times_by_type[col_id].w_index += avgtime.w_totaltime;
-              times_by_type[col_id].b_index += avgtime.b_totaltime;
-              times_by_type[col_id].wo_total_pages_scanned += avgtime.wo_total_pages_scanned;
-              times_by_type[col_id].w_total_pages_scanned += avgtime.w_total_pages_scanned;
-              times_by_type[col_id].b_total_pages_scanned += avgtime.b_total_pages_scanned;
-              convertToCharptr(predicate+20,predicate_val,intlog(num_rows));
+      //   for ( int col_id =0; col_id < num_columns; col_id++){
+      //     for(int i=0; i < num_runs; i++){
+      //       int predicateindex = 0;
+      //       char** predicates = (char**)malloc(sizeof(char*)*num_queries);
+      //     // rangequeries
+      //       while ( predicateindex <  num_queries) {
+      //         // sleep(1);
+      //         srand(time(NULL));
+      //         char* predicate_val = (char*)malloc(intlog(num_rows)+1);
+      //         int predicate = rand()%num_rows;
+      //         convertToCharptr(predicate,predicate_val,intlog(num_rows));
+      //         predicates[predicateindex] = predicate_val;
+      //         runfile << "#############" << " col_num " << col_id << " run number "<< i << " Query number " << predicateindex << " predicate: " << predicates[predicateindex] << " #############"  << std::endl;
+      //         trun avgtime = run_for_one_predicate(num_columns,num_row_groups,parquet_reader,col_id,predicates,predicateindex,-1,true,true);
+      //         times_by_type[col_id].wo_index += avgtime.wo_totaltime;
+      //         times_by_type[col_id].w_index += avgtime.w_totaltime;
+      //         times_by_type[col_id].b_index += avgtime.b_totaltime;
+      //         times_by_type[col_id].wo_total_pages_scanned += avgtime.wo_total_pages_scanned;
+      //         times_by_type[col_id].w_total_pages_scanned += avgtime.w_total_pages_scanned;
+      //         times_by_type[col_id].b_total_pages_scanned += avgtime.b_total_pages_scanned;
+      //         convertToCharptr(predicate+20,predicate_val,intlog(num_rows));
+      //         predicates[predicateindex] = predicate_val;
+      //         runfile << "#############" << " col_num " << col_id << " run number "<< i << " Query number " << predicateindex << " predicate: " << predicates[predicateindex] << " #############"  << std::endl;
+      //         avgtime = run_for_one_predicate(num_columns,num_row_groups,parquet_reader,col_id,predicates,predicateindex,1,true,true);
+      //         times_by_type[col_id].wo_index += avgtime.wo_totaltime;
+      //         times_by_type[col_id].w_index += avgtime.w_totaltime;
+      //         times_by_type[col_id].b_index += avgtime.b_totaltime;
+      //         times_by_type[col_id].wo_total_pages_scanned += avgtime.wo_total_pages_scanned;
+      //         times_by_type[col_id].w_total_pages_scanned += avgtime.w_total_pages_scanned;
+      //         times_by_type[col_id].b_total_pages_scanned += avgtime.b_total_pages_scanned;
+      //         predicateindex++;
+      //       }
+      //     }
+      //   }
+      //   for (int col_id = 0; col_id < num_columns; col_id++ ) {
+      //     runfile<< "col_num " << col_id << std::endl;
+      //     runfile << std::setprecision(3)  << "RANGE QUERY: minimum average time w/o index " 
+      //     << (times_by_type[col_id].wo_index/(num_runs*num_queries)) << "avg num of datapage indices scanned " << (times_by_type[col_id].wo_total_pages_scanned/(num_runs*num_queries)) << std::endl;
+      //     runfile << std::setprecision(3)  << "RANGE QUERY: minimum average time w index " 
+      //     << (times_by_type[col_id].w_index/(num_runs*num_queries)) << "avg num of datapage indices scanned " << (times_by_type[col_id].w_total_pages_scanned/(num_runs*num_queries)) << std::endl;
+      //     runfile << std::setprecision(3)  <<"POINT QUERY: minimum average time w index without binary " 
+      //     << (times_by_type[col_id].b_index/(num_runs*num_queries)) << "avg num of datapage indices scanned " << (times_by_type[col_id].b_total_pages_scanned/(num_runs*num_queries)) << std::endl;
+      //   }
+      //  runfile << "###############################################################" << std::endl;
+      //  runfile << "#################### RUNNING Full Scan QUERIES ####################" << std::endl; 
+      //  for ( int col_id =0; col_id < num_columns; col_id++){
+      //     for(int i=0; i < num_runs; i++){
+      //       int predicateindex = 0;
+      //       char** predicates = (char**)malloc(sizeof(char*)*num_queries);
+      //     // rangequeries
+      //       while ( predicateindex <  num_queries) {
+      //         // sleep(1);
+      //         srand(time(NULL));
+      //         char* predicate_val = (char*)malloc(intlog(num_rows)+1);
+      //         int64_t predicate = 5000000000;
+      //         convertToCharptr(predicate,predicate_val,intlog(num_rows));
+      //         predicates[predicateindex] = predicate_val;
+      //         runfile << "#############" << " col_num " << col_id << " run number "<< i << " Query number " << predicateindex << " predicate: " << predicates[predicateindex] << " #############"  << std::endl;
+      //         trun avgtime = run_for_one_predicate(num_columns,num_row_groups,parquet_reader,col_id,predicates,predicateindex,-1,true,true);
+      //         times_by_type[col_id].wo_index += avgtime.wo_totaltime;
+      //         times_by_type[col_id].w_index += avgtime.w_totaltime;
+      //         times_by_type[col_id].b_index += avgtime.b_totaltime;
+      //         times_by_type[col_id].wo_total_pages_scanned += avgtime.wo_total_pages_scanned;
+      //         times_by_type[col_id].w_total_pages_scanned += avgtime.w_total_pages_scanned;
+      //         times_by_type[col_id].b_total_pages_scanned += avgtime.b_total_pages_scanned;
+      //         convertToCharptr(predicate+20,predicate_val,intlog(num_rows));
 
-              predicateindex++;
-            }
-          }
-        }
-        for (int col_id = 0; col_id < num_columns; col_id++ ) {
-          runfile<< "col_num " << col_id << std::endl;
-          runfile << std::setprecision(3)  << "FULL SCAN QUERY: minimum average time w/o index " 
-          << (times_by_type[col_id].wo_index/(num_runs*num_queries)) << "avg num of datapage indices scanned " << (times_by_type[col_id].wo_total_pages_scanned/(num_runs*num_queries)) << std::endl;
-          runfile << std::setprecision(3)  << "FULL SCAN QUERY: minimum average time w index " 
-          << (times_by_type[col_id].w_index/(num_runs*num_queries)) << "avg num of datapage indices scanned " << (times_by_type[col_id].w_total_pages_scanned/(num_runs*num_queries)) << std::endl;
-          runfile << std::setprecision(3)  << "FULL SCAN QUERY: minimum average time w index without binary search " 
-          << (times_by_type[col_id].b_index/(num_runs*num_queries)) << "avg num of datapage indices scanned " << (times_by_type[col_id].b_total_pages_scanned/(num_runs*num_queries)) << std::endl;
-        }
-        runfile << "###############################################################" << std::endl;
+      //         predicateindex++;
+      //       }
+      //     }
+      //   }
+      //   for (int col_id = 0; col_id < num_columns; col_id++ ) {
+      //     runfile<< "col_num " << col_id << std::endl;
+      //     runfile << std::setprecision(3)  << "FULL SCAN QUERY: minimum average time w/o index " 
+      //     << (times_by_type[col_id].wo_index/(num_runs*num_queries)) << "avg num of datapage indices scanned " << (times_by_type[col_id].wo_total_pages_scanned/(num_runs*num_queries)) << std::endl;
+      //     runfile << std::setprecision(3)  << "FULL SCAN QUERY: minimum average time w index " 
+      //     << (times_by_type[col_id].w_index/(num_runs*num_queries)) << "avg num of datapage indices scanned " << (times_by_type[col_id].w_total_pages_scanned/(num_runs*num_queries)) << std::endl;
+      //     runfile << std::setprecision(3)  << "FULL SCAN QUERY: minimum average time w index without binary search " 
+      //     << (times_by_type[col_id].b_index/(num_runs*num_queries)) << "avg num of datapage indices scanned " << (times_by_type[col_id].b_total_pages_scanned/(num_runs*num_queries)) << std::endl;
+      //   }
+      //   runfile << "###############################################################" << std::endl;
         runfile.close();
       }
 
@@ -506,8 +506,8 @@ int64_t first_pass_for_predicate_only(std::shared_ptr<parquet::RowGroupReader> r
       }
       // Read all the rows in the column
       std::cout << "Column Type: " << predicate_column_reader->type() << std::endl;
-      std::cout << "column id:" << col_id << " page index:" << page_index << "number of column indices scanned: " << count_pages_scanned <<
-      "total number of pages: " << ((total_num_pages!=0)?total_num_pages:ind) << "last page first row index: " << last_first_row << std::endl;
+      std::cout << " column id: " << col_id << " page index:" << page_index << "number of column indices scanned: " << count_pages_scanned <<
+      " total number of pages: " << ((total_num_pages!=0)?total_num_pages:ind) << " last page first row index: " << last_first_row << std::endl;
         
       return count_pages_scanned;
 }
