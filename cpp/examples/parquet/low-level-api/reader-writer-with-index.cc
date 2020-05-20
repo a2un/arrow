@@ -483,32 +483,37 @@ int64_t first_pass_for_predicate_only(std::shared_ptr<parquet::RowGroupReader> r
       int64_t row_counter = 0;
 
       if ( row_index != -1 ) {
-      if(with_index){
-        ind = row_index;
-        row_counter = 0;
-        generic_reader->Skip(row_index);
-        do{ ind++;
-         if((printVal(column_reader_with_index,generic_reader,ind,vals,row_counter,true,equal_to)))
-             break;
-        }while((generic_reader->HasNext()));
-      }
-      else{
-        while (generic_reader->HasNext()) { 
+        if(with_index){
+          ind = row_index;
+          row_counter = 0;
+          generic_reader->Skip(row_index);
+          do{ ind++;
+            if((printVal(column_reader_with_index,generic_reader,ind,vals,row_counter,true,equal_to)))
+               break;
+          }while((generic_reader->HasNext()));
+        }
+        else{
+          while (generic_reader->HasNext()) { 
             ind++;
             count_pages_scanned++;
-          if(printVal(column_reader_with_index,generic_reader,ind,vals,row_counter,true,equal_to))
-             break;
+            if(printVal(column_reader_with_index,generic_reader,ind,vals,row_counter,true,equal_to))
+               break;
           //        int64_t expected_value = col_row_counts[col_id];  
           //        assert(value == expected_value);
-         col_row_counts[col_id]++;
-        } 
-      }
-      }
-      // Read all the rows in the column
-      std::cout << "Column Type: " << predicate_column_reader->type() << std::endl;
-      std::cout << " column id: " << col_id << " page index:" << page_index << "number of column indices scanned: " << count_pages_scanned <<
-      " total number of pages: " << ((total_num_pages!=0)?total_num_pages:ind) << " last page first row index: " << last_first_row << std::endl;
+            col_row_counts[col_id]++;
+          } 
+        }
+        // Read all the rows in the column
+        std::cout << "Column Type: " << predicate_column_reader->type() << std::endl;
+        std::cout << " column id: " << col_id << " page index:" << page_index << "number of column indices scanned: " << count_pages_scanned <<
+        " total number of pages: " << ((total_num_pages!=0)?total_num_pages:ind) << " last page first row index: " << last_first_row << std::endl;
         
+      }
+      else{
+         std::cout << "Column Type: " << predicate_column_reader->type() << std::endl;
+         std:: cout << "non-membery query" << std::endl;
+      }
+
       return count_pages_scanned;
 }
 
