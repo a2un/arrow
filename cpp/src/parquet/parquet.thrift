@@ -953,6 +953,9 @@ struct ColumnIndex {
 
   /** A list containing the number of null values for each page **/
   5: optional list<i64> null_counts
+
+  /** page level bloom filter offset **/
+  6: optional i64 page_bloom_filter_offset
 }
 
 struct AesGcmV1 {
