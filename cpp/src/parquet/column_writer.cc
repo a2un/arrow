@@ -654,6 +654,10 @@ class ColumnWriterImpl {
   void AddLocationToOffsetIndex(const parquet::format::PageLocation location) {
     offset_index_.page_locations.push_back(location);
   }
+
+  void AddBloomFilterOffsetToOffsetIndex(const int64_t page_blf_offset) {
+    offset_index_.page_bloom_filter_offsets.push_back(page_blf_offset);
+  }
    
   ::arrow::Status TruncateDown ( std::string min, int32_t max_length, std::string* result ) {
     *result = min.substr(0, std::min(static_cast<int32_t>(min.length()), max_length));

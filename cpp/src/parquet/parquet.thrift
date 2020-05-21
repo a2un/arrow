@@ -915,6 +915,9 @@ struct OffsetIndex {
    * that page_locations[i].first_row_index < page_locations[i+1].first_row_index.
    */
   1: required list<PageLocation> page_locations
+
+  /** page level bloom filter offset **/
+  2: optional list<i64> page_bloom_filter_offsets
 }
 
 /**
@@ -954,8 +957,6 @@ struct ColumnIndex {
   /** A list containing the number of null values for each page **/
   5: optional list<i64> null_counts
 
-  /** page level bloom filter offset **/
-  6: optional i64 page_bloom_filter_offset
 }
 
 struct AesGcmV1 {
