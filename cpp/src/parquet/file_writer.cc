@@ -248,10 +248,12 @@ class RowGroupSerializer : public RowGroupWriter::Contents {
     if (!closed_) {
       closed_ = true;
       CheckRowsWritten();
-
+      int64_t file_pos_;
       for (size_t i = 0; i < column_writers_.size(); i++) {
         if (column_writers_[i]) {
+          sink_->Tell(&file_pos_);
           total_bytes_written_ += (use_index)? column_writers_[i]->Close(): column_writers_[i]->CloseWithIndex();
+          column_writers_[i]->WriteIndex(file_pos_,column_index_offset,offset_index_offset);
           column_writers_[i].reset();
         }
       }
