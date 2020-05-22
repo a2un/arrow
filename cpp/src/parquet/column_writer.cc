@@ -355,7 +355,7 @@ class SerializedPageWriter : public PageWriter {
 
     uint32_t ci_len, oi_len;
     uint8_t* buffer;
-    
+    if (file_pos_ == 0) sink_->Tell(&file_pos_);
     thrift_serializer_->SerializeToBuffer(&ci,&ci_len,&buffer);
     sink_->Write(buffer,ci_len);
     thrift_serializer_->SerializeToBuffer(&oi,&oi_len,&buffer);
