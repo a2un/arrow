@@ -660,8 +660,9 @@ class ColumnWriterImpl {
   }
 
   ::arrow::Status ReserveOffsetIndex(int64_t capacity) {
-    PARQUET_THROW_NOT_OK(AddMemoryConsumptionForPageIndex(capacity * sizeof(parquet::format::PageLocation)));
+    PARQUET_THROW_NOT_OK(AddMemoryConsumptionForPageIndex(capacity * (sizeof(parquet::format::PageLocation)) + sizeof(int64_t)));
     offset_index_.page_locations.reserve(capacity);
+    offset_index_.page_bloom_filter_offsets.reserve(capacity);
     return ::arrow::Status::OK();
   }
 

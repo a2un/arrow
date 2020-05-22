@@ -917,7 +917,7 @@ struct OffsetIndex {
   1: required list<PageLocation> page_locations
 
   /** page level bloom filter offset **/
-  2: optional list<i64> page_bloom_filter_offsets
+  2: required list<i64> page_bloom_filter_offsets
 }
 
 /**
