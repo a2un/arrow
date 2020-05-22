@@ -373,6 +373,11 @@ class SerializedPageWriter : public PageWriter {
     metadata_->WriteTo(sink_.get());
   }
 
+  void WritePageBloomFilter( BlockSplitBloomFilter& bl_page_filter, int64_t& file_pos) {
+      sink_->Tell(&file_pos);
+      bl_page_filter.WriteTo(sink_.get());
+  }
+
   bool has_compressor() override { return (compressor_ != nullptr); }
 
   int64_t num_values() { return num_values_; }
@@ -399,8 +404,6 @@ class SerializedPageWriter : public PageWriter {
 
   // Compression codec to use.
   std::unique_ptr<::arrow::util::Codec> compressor_;
-
-  BlockSplitBloomFilter blf;
 
 };
 
@@ -448,6 +451,10 @@ class BufferedPageWriter : public PageWriter {
   
   void WriteIndex(int64_t& file_pos_, int64_t& ci_offset, int64_t& oi_offset, format::ColumnIndex& ci, format::OffsetIndex& oi) {
       pager_->WriteIndex(file_pos_, ci_offset, oi_offset, ci, oi);
+  }
+
+  void WritePageBloomFilter(BlockSplitBloomFilter& blf, int64_t& f_pos) {
+     pager_->WritePageBloomFilter(blf, f_pos);
   }
 
   void Compress(const Buffer& src_buffer, ResizableBuffer* dest_buffer) override {
@@ -526,6 +533,13 @@ class ColumnWriterImpl {
   void WriteIndex(int64_t& file_pos_, int64_t& ci_offset, int64_t& oi_offset);
 
   void WriteBloomFilterOffset(int64_t& file_pos);
+
+  void WritePageBloomFilter(BlockSplitBloomFilter& bl_page_filter) {
+     int64_t f_pos;
+     pager_->WritePageBloomFilter(bl_page_filter, f_pos);
+     AddBloomFilterOffsetToOffsetIndex(f_pos);
+     
+  }
 
  protected:
   virtual std::shared_ptr<Buffer> GetValuesBuffer() = 0;
@@ -1017,6 +1031,7 @@ class TypedColumnWriterImpl : public ColumnWriterImpl, public TypedColumnWriter<
   int64_t Close() override { return ColumnWriterImpl::Close(); }
 
   int64_t CloseWithIndex() override { 
+    WritePageBloomFilter();
     return ColumnWriterImpl::CloseWithIndex(); 
   }
 
@@ -1027,8 +1042,6 @@ class TypedColumnWriterImpl : public ColumnWriterImpl, public TypedColumnWriter<
   void WriteBloomFilterOffset(int64_t& file_pos) override {
      ColumnWriterImpl::WriteBloomFilterOffset(file_pos);
   } 
-
-  void AppendColumnBloomFilter(int64_t num_values, T*values, BlockSplitBloomFilter& blf);
 
   void WriteBatch(int64_t num_values, const int16_t* def_levels,
                   const int16_t* rep_levels, const T* values, bool with_index) override;
@@ -1107,6 +1120,8 @@ class TypedColumnWriterImpl : public ColumnWriterImpl, public TypedColumnWriter<
   std::shared_ptr<TypedStats> page_statistics_;
   std::shared_ptr<TypedStats> chunk_statistics_;
 
+  std::vector<BlockSplitBloomFilter> blf;
+
   inline int64_t WriteMiniBatch(int64_t num_values, const int16_t* def_levels,
                                 const int16_t* rep_levels, const T* values, bool with_index);
 
@@ -1127,6 +1142,62 @@ class TypedColumnWriterImpl : public ColumnWriterImpl, public TypedColumnWriter<
     dynamic_cast<ValueEncoderType*>(current_encoder_.get())
         ->PutSpaced(values, static_cast<int>(num_values), valid_bits, valid_bits_offset);
   }
+
+  void AppendValuesToPageBloomFilter(int64_t num_values, const int32_t* values) {
+    for ( uint32_t i=0; i < num_values; i++){
+       blf[blf.size()-1].InsertHash(blf[blf.size()-1].Hash(values[i]));
+    }
+  }
+
+  void AppendValuesToPageBloomFilter(int64_t num_values, const int64_t* values) {
+    for ( uint32_t i=0; i < num_values; i++){
+       blf[blf.size()-1].InsertHash(blf[blf.size()-1].Hash(values[i]));
+    }
+  }
+
+  void AppendValuesToPageBloomFilter(int64_t num_values, const float* values) {
+    for ( uint32_t i=0; i < num_values; i++){
+       blf[blf.size()-1].InsertHash(blf[blf.size()-1].Hash(values[i]));
+    }
+  }
+
+  void AppendValuesToPageBloomFilter(int64_t num_values, const double* values) {
+    for ( uint32_t i=0; i < num_values; i++){
+       blf[blf.size()-1].InsertHash(blf[blf.size()-1].Hash(values[i]));
+    }
+  }
+
+  void AppendValuesToPageBloomFilter(int64_t num_values, const ByteArray* values) {
+    for ( uint32_t i=0; i < num_values; i++){
+       blf[blf.size()-1].InsertHash(blf[blf.size()-1].Hash(&values[i]));
+    }
+  }
+
+  void AppendValuesToPageBloomFilter(int64_t num_values, const Int96* values) {
+
+  }
+
+  void AppendValuesToPageBloomFilter(int64_t num_values, const FLBA* values) {
+
+  }
+
+  void AppendValuesToPageBloomFilter(int64_t num_values, const bool* values) {
+
+  }
+
+  void WritePageBloomFilter() {
+    for (uint32_t i=0; i < blf.size(); i++)
+      ColumnWriterImpl::WritePageBloomFilter(blf[i]);
+  }
+
+  void InitializeBloomF() {
+    if (blf.size() == 0) {
+      BlockSplitBloomFilter bf;
+      bf.Init(properties_->write_batch_size());
+      blf.push_back(std::move(bf));
+    }
+  }
+
 };
 
 // Only one Dictionary Page is written.
@@ -1197,6 +1268,7 @@ int64_t TypedColumnWriterImpl<DType>::WriteMiniBatch(int64_t num_values,
   }
 
   WriteValues(values_to_write, values);
+  AppendValuesToPageBloomFilter(values_to_write,values);
 
   if (page_statistics_ != nullptr) {
     page_statistics_->Update(values, values_to_write, num_values - values_to_write);
@@ -1206,6 +1278,10 @@ int64_t TypedColumnWriterImpl<DType>::WriteMiniBatch(int64_t num_values,
   num_buffered_encoded_values_ += values_to_write;
 
   if (current_encoder_->EstimatedDataEncodedSize() >= properties_->data_pagesize()) {
+    BlockSplitBloomFilter bf;
+    bf.Init(properties_->write_batch_size());
+    blf.push_back(std::move(bf));
+    
     if (!with_index)
        AddDataPage();
     else
@@ -1301,6 +1377,9 @@ void TypedColumnWriterImpl<DType>::WriteBatch(int64_t num_values,
   // of values, the chunking will ensure the AddDataPage() is called at a reasonable
   // pagesize limit
   int64_t write_batch_size = properties_->write_batch_size();
+
+  InitializeBloomF();
+
   int num_batches = static_cast<int>(num_values / write_batch_size);
   int64_t num_remaining = num_values % write_batch_size;
   int64_t value_offset = 0;
@@ -1314,10 +1393,6 @@ void TypedColumnWriterImpl<DType>::WriteBatch(int64_t num_values,
   int64_t offset = num_batches * write_batch_size;
   WriteMiniBatch(num_remaining, &def_levels[offset], &rep_levels[offset],
                  &values[value_offset], with_index);
-}
-
-template <typename DType>
-void TypedColumnWriterImpl<DType>::AppendColumnBloomFilter(int64_t num_values, T*values, BlockSplitBloomFilter& blf) {
 }
 
 template <typename DType>

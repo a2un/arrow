@@ -99,6 +99,8 @@ class PARQUET_EXPORT PageWriter {
 
   virtual int64_t WriteDataPagesWithIndex(const CompressedDataPage& data_page, format::PageLocation& ploc) = 0;
 
+  virtual void WritePageBloomFilter(BlockSplitBloomFilter& bl_page_filter, int64_t& file_pos) = 0;
+
   virtual void WriteIndex(int64_t& file_pos_, int64_t& ci_offset, int64_t& oi_offset, format::ColumnIndex& ci, format::OffsetIndex& oi) = 0;
 
   virtual int64_t WriteDictionaryPage(const DictionaryPage& page) = 0;
