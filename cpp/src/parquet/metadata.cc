@@ -747,6 +747,7 @@ class ColumnChunkMetaDataBuilder::ColumnChunkMetaDataBuilderImpl {
       column_chunk_->__set_column_index_length(ci_len);
       column_chunk_->__set_offset_index_offset(file_pos_+offset_index_offset);
       column_chunk_->__set_offset_index_length(oi_len);
+      file_pos_ += offset_index_offset+oi_len;
   }
 
   void WriteBloomFilterOffset(int64_t& bloom_filter_offset) {

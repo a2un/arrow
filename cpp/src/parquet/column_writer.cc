@@ -1199,6 +1199,12 @@ class TypedColumnWriterImpl : public ColumnWriterImpl, public TypedColumnWriter<
     }
   }
 
+  void NewPageBloomFilter() {
+    BlockSplitBloomFilter bf;
+    bf.Init(properties_->write_batch_size());
+    blf.push_back(std::move(bf));
+  }
+
 };
 
 // Only one Dictionary Page is written.
@@ -1214,7 +1220,7 @@ void TypedColumnWriterImpl<DType>::CheckDictionarySizeLimit(bool with_index) {
     if (!with_index)
        FlushBufferedDataPages();
     else{
-       WritePageBloomFilter();
+       NewPageBloomFilter();
        FlushBufferedDataPagesWithIndex();
     }
     fallback_ = true;
@@ -1281,9 +1287,7 @@ int64_t TypedColumnWriterImpl<DType>::WriteMiniBatch(int64_t num_values,
   num_buffered_encoded_values_ += values_to_write;
 
   if (current_encoder_->EstimatedDataEncodedSize() >= properties_->data_pagesize()) {
-    BlockSplitBloomFilter bf;
-    bf.Init(properties_->write_batch_size());
-    blf.push_back(std::move(bf));
+    NewPageBloomFilter();
     
     if (!with_index)
        AddDataPage();

@@ -185,7 +185,7 @@ class RowGroupSerializer : public RowGroupWriter::Contents {
 
     // Throws an error if more columns are being written
     auto col_meta = metadata_->NextColumnChunk();
-    int64_t file_pos_;
+
     if (column_writers_[0]) {
       total_bytes_written_ += column_writers_[0]->CloseWithIndex();
       sink_->Tell(&file_pos_);
@@ -248,12 +248,11 @@ class RowGroupSerializer : public RowGroupWriter::Contents {
     if (!closed_) {
       closed_ = true;
       CheckRowsWritten();
-      int64_t file_pos_;
+
       for (size_t i = 0; i < column_writers_.size(); i++) {
         if (column_writers_[i]) {
-          sink_->Tell(&file_pos_);
-          total_bytes_written_ += (use_index)? column_writers_[i]->Close(): column_writers_[i]->CloseWithIndex();
-          column_writers_[i]->WriteIndex(file_pos_,column_index_offset,offset_index_offset);
+          total_bytes_written_ += (!use_index)? column_writers_[i]->Close(): column_writers_[i]->CloseWithIndex();
+          //column_writers_[i]->WriteIndex(file_pos_,column_index_offset,offset_index_offset);
           column_writers_[i].reset();
         }
       }
@@ -370,6 +369,7 @@ class RowGroupSerializer : public RowGroupWriter::Contents {
   int64_t column_index_offset = 0;
   int64_t offset_index_offset = 0;
   std::vector<BlockSplitBloomFilter> blf_;
+  int64_t file_pos_;
 };
 
 // ----------------------------------------------------------------------
