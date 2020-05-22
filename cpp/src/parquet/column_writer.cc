@@ -1213,8 +1213,10 @@ void TypedColumnWriterImpl<DType>::CheckDictionarySizeLimit(bool with_index) {
     // Serialize the buffered Dictionary Indicies
     if (!with_index)
        FlushBufferedDataPages();
-    else
+    else{
+       WritePageBloomFilter();
        FlushBufferedDataPagesWithIndex();
+    }
     fallback_ = true;
     // Only PLAIN encoding is supported for fallback in V1
     current_encoder_ = MakeEncoder(DType::type_num, Encoding::PLAIN, false, descr_,
