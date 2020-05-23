@@ -253,6 +253,7 @@ class RowGroupSerializer : public RowGroupWriter::Contents {
         if (column_writers_[i]) {
           total_bytes_written_ += (!use_index)? column_writers_[i]->Close(): column_writers_[i]->CloseWithIndex();
           column_writers_[i]->WriteIndex(0,column_index_offset,offset_index_offset);
+          all_used_cws_.push_back(column_writers_[i]);
           column_writers_[i].reset();
         }
       }
