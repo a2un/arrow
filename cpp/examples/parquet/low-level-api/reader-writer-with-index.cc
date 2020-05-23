@@ -76,15 +76,21 @@ struct return_multiple{
 typedef return_multiple return_multiple;
 
 typedef struct time_to_run{
-       float wo_index = 0.0;
-       float wo_total_pages_scanned = 0.0;
+       float wo_index = 0.0;                      //without index
+       float wo_total_pages_scanned = 0.0;      
        float wo_totaltime = 0.0;
-       float w_totaltime = 0.0;
+       float w_totaltime = 0.0;                   //with index without binary without blf
        float w_index = 0.0;
        float w_total_pages_scanned = 0.0;
-       float b_totaltime = 0.0;
+       float b_totaltime = 0.0;                  //with binary search  without blf
        float b_index = 0.0;
        float b_total_pages_scanned = 0.0;
+       float w_blf_totaltime = 0.0;              // with blf without pageblf
+       float w_blf_index = 0.0;
+       float w_blf_total_pages_scanned = 0.0;
+       float w_pageblf_totaltime = 0.0;              // with blf with pageblf
+       float w_pageblf_index = 0.0;
+       float w_pageblf_total_pages_scanned = 0.0;
   } trun;
 
 int parquet_writer(int argc, char** argv);
@@ -178,7 +184,7 @@ int parquet_reader(int argc,char** argv) {
         std::ofstream runfile;
         runfile.open(PARQUET_FILENAME+"-run-results-w-wo-binarysearch.txt");
         runfile << time(NULL) << std::endl;
-        runfile << "#################### RUNNING POINT QUERIES ####################" << std::endl;
+        runfile << "############################## --  RUNNING POINT QUERIES -- ########################################" << std::endl;
         for ( int col_id = 0; col_id < num_columns; col_id++){
                   
           times_by_type[col_id].w_index = 0.0;
@@ -186,6 +192,8 @@ int parquet_reader(int argc,char** argv) {
           times_by_type[col_id].wo_totaltime = 0.0;
           times_by_type[col_id].w_totaltime = 0.0;
           times_by_type[col_id].b_totaltime = 0.0;
+          times_by_type[col_id].w_blf_totaltime = 0.0;
+          times_by_type[col_id].w_pageblf_totaltime = 0.0;
           times_by_type[col_id].b_index = 0.0;
           times_by_type[col_id].wo_total_pages_scanned = 0.0;
           times_by_type[col_id].w_total_pages_scanned = 0.0;
@@ -206,28 +214,50 @@ int parquet_reader(int argc,char** argv) {
               convertToCharptr(rand()%num_rows,predicate_val,intlog(num_rows));
               predicates[predicateindex] = predicate_val;
             
-              runfile << "#############" << " col_num " << col_id << " run number "<< i << " Query number " << predicateindex << " predicate: " << predicates[predicateindex]  << " #############" << std::endl;
+              runfile  << " run number " << i << "-- Query number " << predicateindex << "-- col_num " << col_id  << " predicate: " << predicates[predicateindex] << std::endl;
               trun avgtime = run_for_one_predicate(num_columns,num_row_groups,parquet_reader,col_id,predicates,predicateindex,0,true,true,true);
+              
               times_by_type[col_id].wo_totaltime += avgtime.wo_totaltime;
               times_by_type[col_id].w_totaltime += avgtime.w_totaltime;
               times_by_type[col_id].b_totaltime += avgtime.b_totaltime;
+              times_by_type[col_id].w_blf_totaltime += avgtime.w_blf_totaltime;
+              times_by_type[col_id].w_pageblf_totaltime = avgtime.w_pageblf_totaltime;
+
               times_by_type[col_id].wo_total_pages_scanned += avgtime.wo_total_pages_scanned;
               times_by_type[col_id].w_total_pages_scanned += avgtime.w_total_pages_scanned;
               times_by_type[col_id].b_total_pages_scanned += avgtime.b_total_pages_scanned;
+              times_by_type[col_id].w_blf_total_pages_scanned += avgtime.w_blf_total_pages_scanned;
+              times_by_type[col_id].w_pageblf_total_pages_scanned += avgtime.w_pageblf_total_pages_scanned;
+              
               predicateindex++;
             }
           }
         }
+
+        runfile << "############################### -- POINT QUERY RUN TIME RESULTS FINAL -- ################################" << std::endl;
+
         for (int col_id = 0; col_id < num_columns; col_id++ ) {
-          runfile<< "col_num " << col_id << std::endl;
+          runfile<< "|----------------------------col_num " << col_id << "----------------------------|" << std::endl;
+          
           runfile << std::setprecision(3)  <<"POINT QUERY: minimum average time w/o index " 
           << (times_by_type[col_id].wo_totaltime/(num_runs*num_queries)) << "avg num of datapage indices scanned " << (times_by_type[col_id].wo_total_pages_scanned/(num_runs*num_queries)) << std::endl;
+          
           runfile << std::setprecision(3)  <<"POINT QUERY: minimum average time w index " 
           << (times_by_type[col_id].w_totaltime/(num_runs*num_queries)) << "avg num of datapage indices scanned " << (times_by_type[col_id].w_total_pages_scanned/(num_runs*num_queries)) << std::endl;
-          runfile << std::setprecision(3)  <<"POINT QUERY: minimum average time w index without bloomfilter " 
+          
+          runfile << std::setprecision(3)  <<"POINT QUERY: minimum average time w index with binary without bloomfilter " 
           << (times_by_type[col_id].b_totaltime/(num_runs*num_queries)) << "avg num of datapage indices scanned " << (times_by_type[col_id].b_total_pages_scanned/(num_runs*num_queries)) << std::endl;
+        
+          runfile << std::setprecision(3)  <<"POINT QUERY: minimum average time w index with binary with bloomfilter " 
+          << (times_by_type[col_id].w_blf_totaltime/(num_runs*num_queries)) << "avg num of datapage indices scanned " << (times_by_type[col_id].w_blf_total_pages_scanned/(num_runs*num_queries)) << std::endl;
+
+          runfile << std::setprecision(3)  <<"POINT QUERY: minimum average time w index with binary with bloomfilter " 
+          << (times_by_type[col_id].w_pageblf_totaltime/(num_runs*num_queries)) << "avg num of datapage indices scanned " << (times_by_type[col_id].w_pageblf_total_pages_scanned/(num_runs*num_queries)) << std::endl;
+            
+          runfile<< "|----------------------------------------------------------------------------------|" << std::endl;
+
         }
-        runfile << "###############################################################" << std::endl;
+        runfile << "#######################################################################################################" << std::endl;
         runfile.close();
       }
 
@@ -276,8 +306,13 @@ trun run_for_one_predicate(int num_columns,int num_row_groups, std::unique_ptr<p
         int num_runs = 5;
          
         float total_pages_scanned = 0.0;
+
+        std::cout << " Column ID: " << col_id << "| Column Type: " << row_group_reader->Column(col_id)->type() << std::endl;
+
         /********FIRST PASS WITHOUT INDEX***************/
         total_time = 0.0;
+        std::cout << " ########################################################################## " << std::endl;
+        std::cout << "\n time for predicate one pass without index: " << std::endl;
         for(int t  =0 ; t< num_runs; t++){
             gettimeofday(&start_time,NULL);
           total_pages_scanned += first_pass_for_predicate_only(row_group_reader,col_id,num_columns,predicate_val,false,equal_to,binary_search,with_bloom_filter, with_page_bf);
@@ -285,21 +320,84 @@ trun run_for_one_predicate(int num_columns,int num_row_groups, std::unique_ptr<p
           
             float time_elapsed = ((float)(end_time.tv_sec-start_time.tv_sec) + abs((float)(end_time.tv_usec - start_time.tv_usec))/1000000.0);
 
-            std::cout << std::setprecision(3) << "\n time for predicate one pass without index: " << time_elapsed << std::endl;
+            std::cout << std::setprecision(3) << time_elapsed << std::endl;
 
             total_time = (t!=0 && time_elapsed > total_time)? total_time:time_elapsed;
         }
-        //std::cout << std::setprecision(3)  << "total time " << total_time << std::endl;
-        //float avg_time = (float)total_time/(float)num_runs;
-        //std::cout << std::setprecision(3) <<  "\n avg time for predicate one pass without index: " <<  avg_time << " sec for " << num_runs << " runs" << std::endl;
         avgtime.wo_total_pages_scanned = total_pages_scanned/num_runs;
         avgtime.wo_totaltime = total_time;
-        //std::cout << std::setprecision(3)  << " in struct total time " << avgtime.wo_totaltime << std::endl;
-        //avgtime.wo_index = total_time; 
-       /**************FIRST PASS WITH INDEX*****************/
-       total_time = 0.0;
+        std::cout << " ########################################################################## " << std::endl;
        
-       total_pages_scanned = 0.0;
+        /**************FIRST PASS WITH INDEX WITHOUT BINARY WITHOUT BF PAGE BF*****************/
+
+        total_time = 0.0;
+        total_pages_scanned = 0.0;
+        std::cout << " ########################################################################## " << std::endl;
+        std::cout << "\n time for predicate one pass without binary without bloom filter: " << std::endl;
+        for(int t  =0 ; t< num_runs; t++){
+            gettimeofday(&start_time,NULL);
+          first_pass_for_predicate_only(row_group_reader,col_id,num_columns,predicate_val,true,equal_to, !binary_search, !with_bloom_filter,with_page_bf);
+          gettimeofday(&end_time,NULL);
+          
+            float time_elapsed = ((float)(end_time.tv_sec-start_time.tv_sec) + abs((float)(end_time.tv_usec - start_time.tv_usec))/1000000.0);
+
+            std::cout << std::setprecision(3) << time_elapsed << std::endl;
+
+            total_time = (t!=0 && time_elapsed > total_time)? total_time:time_elapsed;
+        }
+        
+        avgtime.w_total_pages_scanned = total_pages_scanned/num_runs;
+        avgtime.w_totaltime = total_time;
+
+        std::cout << " ########################################################################## " << std::endl;
+        /**************FIRST PASS WITH INDEX WITH BINARY WITHOUT BF PAGE BF*****************/
+
+        total_time = 0.0;
+        total_pages_scanned = 0.0;
+        std::cout << " ########################################################################## " << std::endl;
+        std::cout << "\n time for predicate one pass with binary without bloom filter: "  << std::endl;
+        for(int t  =0 ; t< num_runs; t++){
+            gettimeofday(&start_time,NULL);
+          first_pass_for_predicate_only(row_group_reader,col_id,num_columns,predicate_val,true,equal_to, binary_search, !with_bloom_filter,with_page_bf);
+          gettimeofday(&end_time,NULL);
+          
+            float time_elapsed = ((float)(end_time.tv_sec-start_time.tv_sec) + abs((float)(end_time.tv_usec - start_time.tv_usec))/1000000.0);
+
+            std::cout << std::setprecision(3) << time_elapsed << std::endl;
+
+            total_time = (t!=0 && time_elapsed > total_time)? total_time:time_elapsed;
+        }
+        
+        avgtime.b_total_pages_scanned = total_pages_scanned/num_runs;
+        avgtime.b_totaltime = total_time;
+        std::cout << " ########################################################################## " << std::endl;
+        /**************FIRST PASS WITH INDEX WITH BINARY WITH BF WITHOUT PAGE BF*****************/
+
+        total_time = 0.0;
+        total_pages_scanned = 0.0;
+        std::cout << " ########################################################################## " << std::endl;
+        std::cout << "\n time for predicate one pass with binary with bloom filter: " << std::endl;
+        for(int t  =0 ; t< num_runs; t++){
+            gettimeofday(&start_time,NULL);
+          first_pass_for_predicate_only(row_group_reader,col_id,num_columns,predicate_val,true,equal_to, binary_search, with_bloom_filter,!with_page_bf);
+          gettimeofday(&end_time,NULL);
+          
+            float time_elapsed = ((float)(end_time.tv_sec-start_time.tv_sec) + abs((float)(end_time.tv_usec - start_time.tv_usec))/1000000.0);
+
+            std::cout << std::setprecision(3) << time_elapsed << std::endl;
+
+            total_time = (t!=0 && time_elapsed > total_time)? total_time:time_elapsed;
+        }
+        
+        avgtime.w_blf_total_pages_scanned = total_pages_scanned/num_runs;
+        avgtime.w_blf_totaltime = total_time;
+
+        std::cout << " ########################################################################## " << std::endl;
+      /**************FIRST PASS WITH INDEX WITH BINARY WITH BF WITH PAGE BF*****************/
+        total_time = 0.0;
+        total_pages_scanned = 0.0;
+        std::cout << " ########################################################################## " << std::endl;
+        std::cout << "\n time for predicate one pass all enabled: " << std::endl;
         for(int t  =0 ; t< num_runs; t++){
             gettimeofday(&start_time,NULL);
           first_pass_for_predicate_only(row_group_reader,col_id,num_columns,predicate_val,true,equal_to,binary_search, with_bloom_filter,with_page_bf);
@@ -307,38 +405,15 @@ trun run_for_one_predicate(int num_columns,int num_row_groups, std::unique_ptr<p
           
             float time_elapsed = ((float)(end_time.tv_sec-start_time.tv_sec) + abs((float)(end_time.tv_usec - start_time.tv_usec))/1000000.0);
 
-            std::cout << std::setprecision(3) << "\n time for predicate one pass: " << time_elapsed << std::endl;
+            std::cout << std::setprecision(3) << time_elapsed << std::endl;
 
             total_time = (t!=0 && time_elapsed > total_time)? total_time:time_elapsed;
         }
-        //std::cout << std::setprecision(3)  << "total time " << total_time << std::endl;
-        //avg_time = (float)total_time/(float)num_runs;
-        //std::cout << std::setprecision(3) <<  "\n avg time for predicate one pass: " <<  avg_time << " sec for " << num_runs << " runs" << std::endl;
-        avgtime.w_total_pages_scanned = total_pages_scanned/num_runs;
-        avgtime.w_totaltime = total_time;
-        //std::cout << std::setprecision(3)  << " in struct total time " << avgtime.w_totaltime << std::endl;
-        //avgtime.w_index = total_time;
+        
+        avgtime.w_pageblf_total_pages_scanned = total_pages_scanned/num_runs;
+        avgtime.w_pageblf_totaltime = total_time;
+        std::cout << " ########################################################################## " << std::endl;
 
-        total_time = 0.0;
-        total_pages_scanned = 0.0;
-        for(int t  =0 ; t< num_runs; t++){
-            gettimeofday(&start_time,NULL);
-          first_pass_for_predicate_only(row_group_reader,col_id,num_columns,predicate_val,true,equal_to,binary_search, !with_bloom_filter,with_page_bf);
-          gettimeofday(&end_time,NULL);
-          
-            float time_elapsed = ((float)(end_time.tv_sec-start_time.tv_sec) + abs((float)(end_time.tv_usec - start_time.tv_usec))/1000000.0);
-
-            std::cout << std::setprecision(3) << "\n time for predicate one pass without bloom filter: " << time_elapsed << std::endl;
-
-            total_time = (t!=0 && time_elapsed > total_time)? total_time:time_elapsed;
-        }
-        //std::cout << std::setprecision(3)  << "total time " << total_time << std::endl;
-        //avg_time = (float)total_time/(float)num_runs;
-        //std::cout << std::setprecision(3) <<  "\n avg time for predicate one pass: " <<  avg_time << " sec for " << num_runs << " runs" << std::endl;
-        avgtime.b_total_pages_scanned = total_pages_scanned/num_runs;
-        avgtime.b_totaltime = total_time;
-        //std::cout << std::setprecision(3)  << " in struct total time " << avgtime.w_totaltime << std::endl;
-        //avgtime.w_index = total_time;
       /***********FIRST PASS END **********/
 
       /***********Second PASS *************/
@@ -423,13 +498,11 @@ int64_t first_pass_for_predicate_only(std::shared_ptr<parquet::RowGroupReader> r
           } 
         }
         // Read all the rows in the column
-        std::cout << "Column Type: " << predicate_column_reader->type() << std::endl;
-        std::cout << " column id: " << col_id << " page index:" << page_index << "number of column indices scanned: " << count_pages_scanned <<
-        " total number of pages: " << ((total_num_pages!=0)?total_num_pages:ind) << " last page first row index: " << last_first_row << std::endl;
+        std::cout << "| page index: " << page_index << "| number of column indices scanned: " << count_pages_scanned <<
+        "| total number of pages: " << ((total_num_pages!=0)?total_num_pages:ind) << "| last page first row index: " << last_first_row << std::endl;
         
       }
       else{
-         std::cout << "Column Type: " << predicate_column_reader->type() << std::endl;
          std:: cout << "non-membery query" << std::endl;
       }
 
