@@ -192,13 +192,13 @@ class RowGroupSerializer : public RowGroupWriter::Contents {
       column_writers_[0]->WriteIndex(file_pos_,column_index_offset,offset_index_offset);
     }
 
-    ++next_column_index_;
-
     //total_bytes_written_ += blf_[next_column_index_].GetBitsetSize();
     if ( column_writers_[0] ) {
       blf_[next_column_index_].Init(blf_[next_column_index_].OptimalNumOfBits(column_writers_[0]->rows_written() , false_positive_prob));
       all_used_cws_.push_back(column_writers_[0]);
     }
+
+    ++next_column_index_;
 
     const ColumnDescriptor* column_descr = col_meta->descr();
     std::unique_ptr<PageWriter> pager =
