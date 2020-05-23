@@ -194,7 +194,10 @@ class RowGroupSerializer : public RowGroupWriter::Contents {
 
     //total_bytes_written_ += blf_[next_column_index_].GetBitsetSize();
     if ( column_writers_[0] ) {
+      // next column bloom filter initialized
       blf_[next_column_index_].Init(blf_[next_column_index_].OptimalNumOfBits(column_writers_[0]->rows_written() , false_positive_prob));
+      
+      //current column writer saved for future use
       all_used_cws_.push_back(column_writers_[0]);
     }
 
@@ -290,6 +293,7 @@ class RowGroupSerializer : public RowGroupWriter::Contents {
 
 
   void InitBloomFilter(int num_rows) override {
+      // first time column initialization, not possible in nextcolumnchunk
       blf_[next_column_index_].Init(blf_[next_column_index_].OptimalNumOfBits(num_rows , false_positive_prob));
   }
 
