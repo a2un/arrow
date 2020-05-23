@@ -652,7 +652,7 @@ class ColumnWriterImpl {
   /// However, we don't want to store very long strings, so we truncate them.
   /// The value of it must not be too small, since we don't want to truncate
   /// non-string values.
-  static const int PAGE_INDEX_MAX_STRING_LENGTH = 64;
+  static const int PAGE_INDEX_MAX_STRING_LENGTH = 128;
 
   ::arrow::Status AddMemoryConsumptionForPageIndex(int64_t new_memory_allocation) {
       page_index_memory_consumption_ += new_memory_allocation;
