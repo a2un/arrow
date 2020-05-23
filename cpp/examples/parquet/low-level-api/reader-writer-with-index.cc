@@ -503,7 +503,7 @@ int64_t first_pass_for_predicate_only(std::shared_ptr<parquet::RowGroupReader> r
         
       }
       else{
-         std:: cout << "non-membery query" << std::endl;
+         std:: cout << "non-member query" << std::endl;
       }
 
       return count_pages_scanned;
@@ -622,163 +622,6 @@ return_multiple getPredicate(std::shared_ptr<parquet::ColumnReader> cr,std::shar
             return vals;
           }
     }
-}
-
-int parquet_writer(int argc, char** argv) {
-
-  /**********************************************************************************
-                             PARQUET WRITER EXAMPLE
-  **********************************************************************************/
-  // parquet::REQUIRED fields do not need definition and repetition level values
-  // parquet::OPTIONAL fields require only definition level values
-  // parquet::REPEATED fields require both definition and repetition level values
-
-  //argv[2] and argv[3] already taken for reader with index for predicate column number and predicate search value
-  char* PARQUET_FILENAME = argv[1];
-  try {
-    // Create a local file output stream instance.
-    using FileClass = ::arrow::io::FileOutputStream;
-    std::shared_ptr<FileClass> out_file;
-    PARQUET_THROW_NOT_OK(FileClass::Open(PARQUET_FILENAME, &out_file));
-
-    // Setup the parquet schema
-    std::shared_ptr<GroupNode> schema = SetupSchema();
-
-    // Add writer properties
-    parquet::WriterProperties::Builder builder;
-    builder.compression(parquet::Compression::UNCOMPRESSED);
-    std::shared_ptr<parquet::WriterProperties> props = builder.build();
-
-    // Create a ParquetFileWriter instance
-    std::shared_ptr<parquet::ParquetFileWriter> file_writer =
-        parquet::ParquetFileWriter::Open(out_file, schema, props);
-
-    // Append a BufferedRowGroup to keep the RowGroup open until a certain size
-    parquet::RowGroupWriter* rg_writer = file_writer->AppendBufferedRowGroup();
-
-    int num_columns = file_writer->num_columns();
-    std::vector<int64_t> buffered_values_estimate(num_columns, 0);
-    for (int i = 0; i < NUM_ROWS; i++) {
-      int64_t estimated_bytes = 0;
-      // Get the estimated size of the values that are not written to a page yet
-      for (int n = 0; n < num_columns; n++) {
-        estimated_bytes += buffered_values_estimate[n];
-      }
-
-      // We need to consider the compressed pages
-      // as well as the values that are not compressed yet
-      if ((rg_writer->total_bytes_written() + rg_writer->total_compressed_bytes() +
-           estimated_bytes) > ROW_GROUP_SIZE) {
-        rg_writer->Close();
-        std::fill(buffered_values_estimate.begin(), buffered_values_estimate.end(), 0);
-        rg_writer = file_writer->AppendBufferedRowGroup();
-      }
-
-      int col_id = 0;
-      int64_t current_page_row_set_index = 0;
-
-      // Write the Bool column
-      parquet::BoolWriter* bool_writer =
-          static_cast<parquet::BoolWriter*>(rg_writer->column(col_id));
-      bool bool_value = ((i % 2) == 0) ? true : false;
-      bool_writer->WriteBatch(1, nullptr, nullptr, &bool_value);
-      buffered_values_estimate[col_id] = bool_writer->EstimatedBufferedValueBytes();
-
-      // Write the Int32 column
-      col_id++;
-      parquet::Int32Writer* int32_writer =
-          static_cast<parquet::Int32Writer*>(rg_writer->column(col_id));
-      int32_t int32_value = i;
-      int32_writer->WriteBatch(1, nullptr, nullptr, &int32_value);
-      buffered_values_estimate[col_id] = int32_writer->EstimatedBufferedValueBytes();
-
-      // Write the Int64 column. Each row has repeats twice.
-      col_id++;
-      parquet::Int64Writer* int64_writer =
-          static_cast<parquet::Int64Writer*>(rg_writer->column(col_id));
-      int64_t int64_value1 = 2 * i;
-      int16_t definition_level = 1;
-      int16_t repetition_level = 0;
-      int64_writer->WriteBatch(1, &definition_level, &repetition_level, &int64_value1);
-      int64_t int64_value2 = (2 * i + 1);
-      repetition_level = 1;  // start of a new record
-      int64_writer->WriteBatch(1, &definition_level, &repetition_level, &int64_value2);
-      buffered_values_estimate[col_id] = int64_writer->EstimatedBufferedValueBytes();
-
-      // Write the INT96 column.
-      col_id++;
-      parquet::Int96Writer* int96_writer =
-          static_cast<parquet::Int96Writer*>(rg_writer->column(col_id));
-      parquet::Int96 int96_value;
-      int96_value.value[0] = i;
-      int96_value.value[1] = i + 1;
-      int96_value.value[2] = i + 2;
-      int96_writer->WriteBatch(1, nullptr, nullptr, &int96_value);
-      buffered_values_estimate[col_id] = int96_writer->EstimatedBufferedValueBytes();
-
-      // Write the Float column
-      col_id++;
-      parquet::FloatWriter* float_writer =
-          static_cast<parquet::FloatWriter*>(rg_writer->column(col_id));
-      float float_value = static_cast<float>(i) * 1.1f;
-      float_writer->WriteBatch(1, nullptr, nullptr, &float_value);
-      buffered_values_estimate[col_id] = float_writer->EstimatedBufferedValueBytes();
-
-      // Write the Double column
-      col_id++;
-      parquet::DoubleWriter* double_writer =
-          static_cast<parquet::DoubleWriter*>(rg_writer->column(col_id));
-      double double_value = i * 1.1111111;
-      double_writer->WriteBatch(1, nullptr, nullptr, &double_value);
-      buffered_values_estimate[col_id] = double_writer->EstimatedBufferedValueBytes();
-
-      // Write the ByteArray column. Make every alternate values NULL
-      col_id++;
-      parquet::ByteArrayWriter* ba_writer =
-          static_cast<parquet::ByteArrayWriter*>(rg_writer->column(col_id));
-      parquet::ByteArray ba_value;
-      char hello[FIXED_LENGTH] = "parquet";
-      hello[7] = static_cast<char>(static_cast<int>('0') + i / 100);
-      hello[8] = static_cast<char>(static_cast<int>('0') + (i / 10) % 10);
-      hello[9] = static_cast<char>(static_cast<int>('0') + i % 10);
-      if (i % 2 == 0) {
-        int16_t definition_level = 1;
-        ba_value.ptr = reinterpret_cast<const uint8_t*>(&hello[0]);
-        ba_value.len = FIXED_LENGTH;
-        ba_writer->WriteBatch(1, &definition_level, nullptr, &ba_value);
-      } else {
-        int16_t definition_level = 0;
-        ba_writer->WriteBatch(1, &definition_level, nullptr, nullptr);
-      }
-      buffered_values_estimate[col_id] = ba_writer->EstimatedBufferedValueBytes();
-
-      // Write the FixedLengthByteArray column
-      col_id++;
-      parquet::FixedLenByteArrayWriter* flba_writer =
-          static_cast<parquet::FixedLenByteArrayWriter*>(rg_writer->column(col_id));
-      parquet::FixedLenByteArray flba_value;
-      char v = static_cast<char>(i);
-      char flba[FIXED_LENGTH] = {v, v, v, v, v, v, v, v, v, v};
-      flba_value.ptr = reinterpret_cast<const uint8_t*>(&flba[0]);
-
-      flba_writer->WriteBatch(1, nullptr, nullptr, &flba_value);
-      buffered_values_estimate[col_id] = flba_writer->EstimatedBufferedValueBytes();
-    }
-
-    // Close the RowGroupWriter
-    rg_writer->Close();
-    // Close the ParquetFileWriter
-    file_writer->Close();
-
-    // Write the bytes to file
-    DCHECK(out_file->Close().ok());
-  } catch (const std::exception& e) {
-    std::cerr << "Parquet write error: " << e.what() << std::endl;
-    return -1;
-  }
-
-return 0;
-
 }
 
 void returnReaderwithType(std::shared_ptr<parquet::ColumnReader>column_reader, parquet::ColumnReader*& int64_reader){
@@ -1046,3 +889,162 @@ bool printVal(std::shared_ptr<parquet::ColumnReader>column_reader, parquet::Colu
         
 }
 
+
+
+/********************** fucntion not used. to remove or edit ****************************************/
+int parquet_writer(int argc, char** argv) {
+
+  /**********************************************************************************
+                             PARQUET WRITER EXAMPLE
+  **********************************************************************************/
+  // parquet::REQUIRED fields do not need definition and repetition level values
+  // parquet::OPTIONAL fields require only definition level values
+  // parquet::REPEATED fields require both definition and repetition level values
+
+  //argv[2] and argv[3] already taken for reader with index for predicate column number and predicate search value
+  char* PARQUET_FILENAME = argv[1];
+  try {
+    // Create a local file output stream instance.
+    using FileClass = ::arrow::io::FileOutputStream;
+    std::shared_ptr<FileClass> out_file;
+    PARQUET_THROW_NOT_OK(FileClass::Open(PARQUET_FILENAME, &out_file));
+
+    // Setup the parquet schema
+    std::shared_ptr<GroupNode> schema = SetupSchema();
+
+    // Add writer properties
+    parquet::WriterProperties::Builder builder;
+    builder.compression(parquet::Compression::UNCOMPRESSED);
+    std::shared_ptr<parquet::WriterProperties> props = builder.build();
+
+    // Create a ParquetFileWriter instance
+    std::shared_ptr<parquet::ParquetFileWriter> file_writer =
+        parquet::ParquetFileWriter::Open(out_file, schema, props);
+
+    // Append a BufferedRowGroup to keep the RowGroup open until a certain size
+    parquet::RowGroupWriter* rg_writer = file_writer->AppendBufferedRowGroup();
+
+    int num_columns = file_writer->num_columns();
+    std::vector<int64_t> buffered_values_estimate(num_columns, 0);
+    for (int i = 0; i < NUM_ROWS; i++) {
+      int64_t estimated_bytes = 0;
+      // Get the estimated size of the values that are not written to a page yet
+      for (int n = 0; n < num_columns; n++) {
+        estimated_bytes += buffered_values_estimate[n];
+      }
+
+      // We need to consider the compressed pages
+      // as well as the values that are not compressed yet
+      if ((rg_writer->total_bytes_written() + rg_writer->total_compressed_bytes() +
+           estimated_bytes) > ROW_GROUP_SIZE) {
+        rg_writer->Close();
+        std::fill(buffered_values_estimate.begin(), buffered_values_estimate.end(), 0);
+        rg_writer = file_writer->AppendBufferedRowGroup();
+      }
+
+      int col_id = 0;
+      int64_t current_page_row_set_index = 0;
+
+      // Write the Bool column
+      parquet::BoolWriter* bool_writer =
+          static_cast<parquet::BoolWriter*>(rg_writer->column(col_id));
+      bool bool_value = ((i % 2) == 0) ? true : false;
+      bool_writer->WriteBatch(1, nullptr, nullptr, &bool_value);
+      buffered_values_estimate[col_id] = bool_writer->EstimatedBufferedValueBytes();
+
+      // Write the Int32 column
+      col_id++;
+      parquet::Int32Writer* int32_writer =
+          static_cast<parquet::Int32Writer*>(rg_writer->column(col_id));
+      int32_t int32_value = i;
+      int32_writer->WriteBatch(1, nullptr, nullptr, &int32_value);
+      buffered_values_estimate[col_id] = int32_writer->EstimatedBufferedValueBytes();
+
+      // Write the Int64 column. Each row has repeats twice.
+      col_id++;
+      parquet::Int64Writer* int64_writer =
+          static_cast<parquet::Int64Writer*>(rg_writer->column(col_id));
+      int64_t int64_value1 = 2 * i;
+      int16_t definition_level = 1;
+      int16_t repetition_level = 0;
+      int64_writer->WriteBatch(1, &definition_level, &repetition_level, &int64_value1);
+      int64_t int64_value2 = (2 * i + 1);
+      repetition_level = 1;  // start of a new record
+      int64_writer->WriteBatch(1, &definition_level, &repetition_level, &int64_value2);
+      buffered_values_estimate[col_id] = int64_writer->EstimatedBufferedValueBytes();
+
+      // Write the INT96 column.
+      col_id++;
+      parquet::Int96Writer* int96_writer =
+          static_cast<parquet::Int96Writer*>(rg_writer->column(col_id));
+      parquet::Int96 int96_value;
+      int96_value.value[0] = i;
+      int96_value.value[1] = i + 1;
+      int96_value.value[2] = i + 2;
+      int96_writer->WriteBatch(1, nullptr, nullptr, &int96_value);
+      buffered_values_estimate[col_id] = int96_writer->EstimatedBufferedValueBytes();
+
+      // Write the Float column
+      col_id++;
+      parquet::FloatWriter* float_writer =
+          static_cast<parquet::FloatWriter*>(rg_writer->column(col_id));
+      float float_value = static_cast<float>(i) * 1.1f;
+      float_writer->WriteBatch(1, nullptr, nullptr, &float_value);
+      buffered_values_estimate[col_id] = float_writer->EstimatedBufferedValueBytes();
+
+      // Write the Double column
+      col_id++;
+      parquet::DoubleWriter* double_writer =
+          static_cast<parquet::DoubleWriter*>(rg_writer->column(col_id));
+      double double_value = i * 1.1111111;
+      double_writer->WriteBatch(1, nullptr, nullptr, &double_value);
+      buffered_values_estimate[col_id] = double_writer->EstimatedBufferedValueBytes();
+
+      // Write the ByteArray column. Make every alternate values NULL
+      col_id++;
+      parquet::ByteArrayWriter* ba_writer =
+          static_cast<parquet::ByteArrayWriter*>(rg_writer->column(col_id));
+      parquet::ByteArray ba_value;
+      char hello[FIXED_LENGTH] = "parquet";
+      hello[7] = static_cast<char>(static_cast<int>('0') + i / 100);
+      hello[8] = static_cast<char>(static_cast<int>('0') + (i / 10) % 10);
+      hello[9] = static_cast<char>(static_cast<int>('0') + i % 10);
+      if (i % 2 == 0) {
+        int16_t definition_level = 1;
+        ba_value.ptr = reinterpret_cast<const uint8_t*>(&hello[0]);
+        ba_value.len = FIXED_LENGTH;
+        ba_writer->WriteBatch(1, &definition_level, nullptr, &ba_value);
+      } else {
+        int16_t definition_level = 0;
+        ba_writer->WriteBatch(1, &definition_level, nullptr, nullptr);
+      }
+      buffered_values_estimate[col_id] = ba_writer->EstimatedBufferedValueBytes();
+
+      // Write the FixedLengthByteArray column
+      col_id++;
+      parquet::FixedLenByteArrayWriter* flba_writer =
+          static_cast<parquet::FixedLenByteArrayWriter*>(rg_writer->column(col_id));
+      parquet::FixedLenByteArray flba_value;
+      char v = static_cast<char>(i);
+      char flba[FIXED_LENGTH] = {v, v, v, v, v, v, v, v, v, v};
+      flba_value.ptr = reinterpret_cast<const uint8_t*>(&flba[0]);
+
+      flba_writer->WriteBatch(1, nullptr, nullptr, &flba_value);
+      buffered_values_estimate[col_id] = flba_writer->EstimatedBufferedValueBytes();
+    }
+
+    // Close the RowGroupWriter
+    rg_writer->Close();
+    // Close the ParquetFileWriter
+    file_writer->Close();
+
+    // Write the bytes to file
+    DCHECK(out_file->Close().ok());
+  } catch (const std::exception& e) {
+    std::cerr << "Parquet write error: " << e.what() << std::endl;
+    return -1;
+  }
+
+return 0;
+
+}

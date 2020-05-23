@@ -1032,8 +1032,9 @@ class TypedColumnWriterImpl : public ColumnWriterImpl, public TypedColumnWriter<
   int64_t Close() override { return ColumnWriterImpl::Close(); }
 
   int64_t CloseWithIndex() override { 
+    int64_t total_bytes_written = ColumnWriterImpl::CloseWithIndex(); 
     WritePageBloomFilter();
-    return ColumnWriterImpl::CloseWithIndex(); 
+    return total_bytes_written;
   }
 
   void WriteIndex(int64_t file_pos_, int64_t ci_offset, int64_t oi_offset) override { 
