@@ -64,6 +64,8 @@ class PARQUET_EXPORT RowGroupWriter {
     virtual int current_column() const = 0;
     virtual void Close() = 0;
 
+    virtual void CloseWithIndex() = 0;
+
     // total bytes written by the page writer
     virtual int64_t total_bytes_written() const = 0;
     // total bytes still compressed but not written
@@ -150,6 +152,8 @@ class PARQUET_EXPORT ParquetFileWriter {
     // Perform any cleanup associated with the file contents
     virtual void Close() = 0;
 
+    virtual void CloseWithIndex() = 0;
+
     /// \note Deprecated since 1.3.0
     RowGroupWriter* AppendRowGroup(int64_t num_rows);
 
@@ -196,6 +200,8 @@ class PARQUET_EXPORT ParquetFileWriter {
 
   void Open(std::unique_ptr<Contents> contents);
   void Close();
+
+  void CloseWithIndex();
 
   // Construct a RowGroupWriter for the indicated number of rows.
   //

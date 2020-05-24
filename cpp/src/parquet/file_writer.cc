@@ -49,6 +49,12 @@ void RowGroupWriter::Close() {
   }
 }
 
+void RowGroupWriter::CloseWithIndex() {
+  if (contents_) {
+    contents_->CloseWithIndex();
+  }
+}
+
 void RowGroupWriter::AppendRowGroupBloomFilter(int32_t values) {
    if (contents_) {
       contents_->AppendRowGroupBloomFilter(values);
@@ -254,6 +260,24 @@ class RowGroupSerializer : public RowGroupWriter::Contents {
 
       for (size_t i = 0; i < column_writers_.size(); i++) {
         if (column_writers_[i]) {
+          total_bytes_written_ += column_writers_[i]->Close();
+        }
+      }
+      column_writers_.clear();
+
+      // Ensures all columns have been written
+      metadata_->set_num_rows(num_rows_);
+      metadata_->Finish(total_bytes_written_);
+    }
+  }
+
+  void CloseWithIndex() override {
+    if (!closed_) {
+      closed_ = true;
+      CheckRowsWritten();
+
+      for (size_t i = 0; i < column_writers_.size(); i++) {
+        if (column_writers_[i]) {
           total_bytes_written_ += (!use_index)? column_writers_[i]->Close(): column_writers_[i]->CloseWithIndex();
           column_writers_[i]->WriteIndex(0,column_index_offset,offset_index_offset);
           all_used_cws_.push_back(column_writers_[i]);
@@ -413,6 +437,23 @@ class FileSerializer : public ParquetFileWriter::Contents {
     }
   }
 
+  void CloseWithIndex() override {
+    if (is_open_) {
+      // If any functions here raise an exception, we set is_open_ to be false
+      // so that this does not get called again (possibly causing segfault)
+      is_open_ = false;
+      if (row_group_writer_) {
+        num_rows_ += row_group_writer_->num_rows();
+        row_group_writer_->CloseWithIndex();
+      }
+      row_group_writer_.reset();
+
+      // Write magic bytes and metadata
+      file_metadata_ = metadata_->Finish();
+      WriteFileMetaData(*file_metadata_, sink_.get());
+    }
+  }
+
   int num_columns() const override { return schema_.num_columns(); }
 
   int num_row_groups() const override { return num_row_groups_; }
@@ -562,6 +603,14 @@ void ParquetFileWriter::Open(std::unique_ptr<ParquetFileWriter::Contents> conten
 void ParquetFileWriter::Close() {
   if (contents_) {
     contents_->Close();
+    file_metadata_ = contents_->metadata();
+    contents_.reset();
+  }
+}
+
+void ParquetFileWriter::CloseWithIndex() {
+  if (contents_) {
+    contents_->CloseWithIndex();
     file_metadata_ = contents_->metadata();
     contents_.reset();
   }
