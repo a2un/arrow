@@ -1,7 +1,7 @@
 $ARROW_HOME/build/debug/parquet-writer-with-pageindex  10000000
 
 mkdir -p $ARROW_HOME/build/debug/tests/nonmember    
-mkdir -p cd $ARROW_HOME/build/debug/tests/member 
+mkdir -p $ARROW_HOME/build/debug/tests/member 
 
 cp parquet_cpp_example_10000000_sorted.parquet member      
 cp parquet_cpp_example_10000000_sorted.parquet nonmember   
@@ -18,6 +18,8 @@ $ARROW_HOME/build/debug/parquet-reader-with-pageindex parquet_cpp_example_100000
 
 ## non-member queries
 cd $ARROW_HOME/build/debug/tests/nonmember
-$ARROW_HOME/build/debug/parquet-reader-with-pageindex ../parquet_cpp_example_10000000_sorted.parquet   100000000  >> debug_n_10Ms &
+$ARROW_HOME/build/debug/parquet-reader-with-pageindex parquet_cpp_example_10000000_sorted.parquet   100000000  >> debug_n_10Ms &
 
-$ARROW_HOME/build/debug/parquet-reader-with-pageindex ../parquet_cpp_example_10000000_unsorted.parquet  100000000  >> debug_n_10Mu &
+$ARROW_HOME/build/debug/parquet-reader-with-pageindex parquet_cpp_example_10000000_unsorted.parquet  100000000  >> debug_n_10Mu &
+
+cd ..
