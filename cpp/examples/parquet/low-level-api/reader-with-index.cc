@@ -508,57 +508,48 @@ int64_t first_pass_for_predicate_only(std::shared_ptr<parquet::RowGroupReader> r
           }while((generic_reader->HasNext()));
         }
         else{
-          while (generic_reader->HasNext()) { 
-            ind++;
-            count_pages_scanned++;
-            if(printVal(column_reader_with_index,generic_reader,ind,vals,row_counter,true,equal_to))
+            while (generic_reader->HasNext()) { 
+              ind++;
+              count_pages_scanned++;
+              if(printVal(column_reader_with_index,generic_reader,ind,vals,row_counter,true,equal_to))
                break;
           //        int64_t expected_value = col_row_counts[col_id];  
           //        assert(value == expected_value);
-            col_row_counts[col_id]++;
-          } 
-        }
-        // Read all the rows in the column
-        std::cout << "| page index: " << page_index << "| number of rows loaded: " << ind <<
-        "| total number of pages: " << total_num_pages << "| last page first row index: " << last_first_row << std::endl;
-        
-      }
-      else{
-         std:: cout << "non-member query" << std::endl;
-      }
-      }
-      else{
-         for(int64_t row_index: unsorted_row_index) {
-           if ( row_index != -1 ) {
-               if(with_index){
-                ind = row_index;
-                row_counter = 0;
-                generic_reader->Skip(row_index);
-                do{ ind++;
-                    if((printVal(column_reader_with_index,generic_reader,ind,vals,row_counter,true,equal_to)))
-                    break;
-                }while((generic_reader->HasNext()));
-              }
-              else{
-                while (generic_reader->HasNext()) { 
-                ind++;
-                count_pages_scanned++;
-                if(printVal(column_reader_with_index,generic_reader,ind,vals,row_counter,true,equal_to))
-                  break;
-          
               col_row_counts[col_id]++;
             } 
-         }
-          // Read all the rows in the column
-           std::cout << "| page index: " << page_index << "| number of rows loaded: " << ind <<
-           "| total number of pages: " << total_num_pages << "| last page first row index: " << last_first_row << std::endl;
-        
           }
-          else{
-         std:: cout << "non-member query" << std::endl;
-      }
+          // Read all the rows in the column
+          std::cout << "| page index: " << page_index << "| number of rows loaded: " << ind <<
+          "| total number of pages: " << total_num_pages << "| last page first row index: " << last_first_row << std::endl;
+        
+        }
+        else{
+          std::cout << "non-member query" << std::endl;
         }
       }
+       else{
+         ind = 0;
+         int index_list_count = 0;
+         bool found = false;
+         for(int64_t row_index: unsorted_row_index) {
+              row_counter = 0;
+              generic_reader->Skip(row_index);
+              do{ ind++;
+                  if((printVal(column_reader_with_index,generic_reader,ind,vals,row_counter,true,equal_to))){
+                    found = true;
+                    break;
+                  }
+                  
+              }while((generic_reader->HasNext()));
+            // Read all the rows in the column
+            std::cout << "| page index: " << unsorted_page_index[index_list_count] << "| number of rows loaded: " << ind <<
+           "| total number of pages: " << total_num_pages << "| last page first row index: " << last_first_row << std::endl;
+            index_list_count++;
+            if (found) break;
+          }
+          if ( ind == (int)unsorted_row_index.size())
+             std::cout << "non-member query" << std::endl;
+       }
 
       return count_pages_scanned;
 }
