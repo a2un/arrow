@@ -83,24 +83,28 @@ std::unique_ptr<PageReader> RowGroupReader::GetColumnPageReader(int i) {
 
 std::unique_ptr<PageReader> RowGroupReader::GetColumnPageReaderWithIndex(int i,void* predicate, int64_t& min_index,
                                             int predicate_col, int64_t& row_index,Type::type type_num, bool binary_search, int64_t& count_pages_scanned,
-                                            int64_t& total_num_pages, int64_t& last_first_row, bool with_bloom_filter, bool with_page_bf) {
+                                            int64_t& total_num_pages, int64_t& last_first_row, bool with_bloom_filter, bool with_page_bf,
+                                            std::vector<int64_t>& unsorted_min_index, std::vector<int64_t>& unsorted_row_index) {
   DCHECK(i < metadata()->num_columns())
       << "The RowGroup only has " << metadata()->num_columns()
       << "columns, requested column: " << i;
   return contents_->GetColumnPageReaderWithIndex(i,predicate, min_index, predicate_col, row_index,type_num, binary_search, count_pages_scanned,
-                                            total_num_pages, last_first_row, with_bloom_filter, with_page_bf);
+                                            total_num_pages, last_first_row, with_bloom_filter, with_page_bf,
+                                            unsorted_min_index, unsorted_row_index);
 }
 
 std::shared_ptr<ColumnReader> RowGroupReader::ColumnWithIndex(int i,void* predicate, int64_t& min_index, int predicate_col, 
                                   int64_t& row_index,Type::type type_num, bool binary_search, int64_t& count_pages_scanned,
-                                            int64_t& total_num_pages, int64_t& last_first_row, bool with_bloom_filter, bool with_page_bf) {
+                                            int64_t& total_num_pages, int64_t& last_first_row, bool with_bloom_filter, bool with_page_bf,
+                                            std::vector<int64_t>& unsorted_min_index, std::vector<int64_t>& unsorted_row_index) {
   DCHECK(i < metadata()->num_columns())
       << "The RowGroup only has " << metadata()->num_columns()
       << "columns, requested column: " << i;
   const ColumnDescriptor* descr = metadata()->schema()->Column(i);
 
   std::unique_ptr<PageReader> page_reader = contents_->GetColumnPageReaderWithIndex(i,predicate, min_index, predicate_col, row_index,type_num, binary_search, count_pages_scanned,
-                                            total_num_pages, last_first_row, with_bloom_filter, with_page_bf);
+                                            total_num_pages, last_first_row, with_bloom_filter, with_page_bf,
+                                            unsorted_min_index, unsorted_row_index);
   return ColumnReader::Make(
       descr, std::move(page_reader),
       const_cast<ReaderProperties*>(contents_->properties())->memory_pool());
@@ -289,10 +293,70 @@ class SerializedRowGroup : public RowGroupReader::Contents {
       }
   }
 
-  void GetPageIndex(std::shared_ptr<ArrowInputFile>& source_, ReaderProperties& properties_, void* predicate, int64_t& min_index,int64_t& row_index, parquet::format::ColumnIndex col_index, 
-                    parquet::format::OffsetIndex offset_index,Type::type type_num, bool with_binarysearch, int64_t& count_pages_scanned,
+
+  void page_bloom_filter_has_value(std::shared_ptr<ArrowInputFile>& source_, ReaderProperties& properties_, void* predicate, format::OffsetIndex& offset_index
+                                    , std::vector<int64_t>& unsorted_min_index, Type::type type_num, std::vector<int64_t>& unsorted_row_index) const {
+      
+      for ( int64_t min_index: unsorted_min_index) {
+        int64_t blf_offset = offset_index.page_bloom_filter_offsets[min_index];
+      std::shared_ptr<ArrowInputStream> stream_ = properties_.GetStream(source_, blf_offset,BloomFilter::kMaximumBloomFilterBytes);
+      BlockSplitBloomFilter page_blf = BlockSplitBloomFilter::Deserialize(stream_.get());
+      unsorted_row_index.push_back(offset_index.page_locations[min_index].first_row_index);
+      switch(type_num) {
+          case Type::BOOLEAN:{
+          break;
+          }
+          case Type::INT32:{
+            int32_t v = *((int32_t*) predicate);
+            if (!page_blf.FindHash(page_blf.Hash(v))) unsorted_row_index.pop_back();
+            break;
+          }
+          case Type::INT64:{
+            int64_t v = *((int64_t*) predicate);
+            if (!page_blf.FindHash(page_blf.Hash(v))) unsorted_row_index.pop_back();
+            break;
+          }
+          case Type::INT96:{
+             uint32_t v = *((uint32_t*) predicate);
+             break;
+          }
+          case Type::FLOAT:{
+             float v = *((float*) predicate);
+             if (!page_blf.FindHash(page_blf.Hash(v))) unsorted_row_index.pop_back();
+             break;
+          }
+          case Type::DOUBLE:{
+             double v = *((double*) predicate);
+             if (!page_blf.FindHash(page_blf.Hash(v))) unsorted_row_index.pop_back();
+             break;
+          }
+          case Type::BYTE_ARRAY:{
+             char* v = (char*) predicate;
+             uint8_t ptr = *v;
+             ByteArray pba((uint32_t)strlen(v),&ptr);
+             if (!page_blf.FindHash(page_blf.Hash(&pba))) unsorted_row_index.pop_back();
+             break;
+          }
+          case Type::FIXED_LEN_BYTE_ARRAY:{
+             char* v = (char*) predicate;
+             uint8_t ptr = *v;
+             ByteArray pba((uint32_t)strlen(v),&ptr);
+             if (!page_blf.FindHash(page_blf.Hash(&pba))) unsorted_row_index.pop_back();
+             break;
+          }
+          default:{
+             parquet::ParquetException::NYI("type reader not implemented");
+          }
+      }
+      } 
+  }
+
+  void GetPageIndex(std::shared_ptr<ArrowInputFile>& source_, ReaderProperties& properties_, void* predicate, 
+                    int64_t& min_index,int64_t& row_index, parquet::format::ColumnIndex col_index, 
+                    parquet::format::OffsetIndex offset_index,Type::type type_num, bool sorted, 
+                    bool with_binarysearch, int64_t& count_pages_scanned,
                     parquet::BlockSplitBloomFilter& blf, bool with_bloom_filter, bool with_page_bf) const {
-      bool sorted = isSorted(col_index,offset_index,type_num);
+      
       switch(type_num) {
          case Type::BOOLEAN:{
            // doesn't make sense for bool
@@ -730,6 +794,158 @@ class SerializedRowGroup : public RowGroupReader::Contents {
          row_index = offset_index.page_locations[min_index].first_row_index;
   }
 
+  void GetPageIndex(std::shared_ptr<ArrowInputFile>& source_, ReaderProperties& properties_, void* predicate, 
+                    std::vector<int64_t>& unsorted_min_index, std::vector<int64_t>& unsorted_row_index,
+                    parquet::format::ColumnIndex col_index, parquet::format::OffsetIndex offset_index,
+                    Type::type type_num, bool sorted, bool with_binarysearch, int64_t& count_pages_scanned,
+                    parquet::BlockSplitBloomFilter& blf, bool with_bloom_filter, bool with_page_bf) const {
+      
+      switch(type_num) {
+         case Type::BOOLEAN:{
+           // doesn't make sense for bool
+           break;
+         }
+         case Type::INT32:{
+              int32_t v = *((int32_t*) predicate);
+              
+              if (with_bloom_filter && !blf.FindHash(blf.Hash(v))) {
+                 return;
+              }
+              
+              for (uint64_t itemindex = 0;itemindex < offset_index.page_locations.size();itemindex++) {
+                int32_t* page_min = (int32_t*)(void *)col_index.min_values[itemindex].c_str();
+                int32_t* page_max = (int32_t*)(void *)col_index.max_values[itemindex].c_str();
+                int32_t max_diff = *page_max - *page_min;
+
+                if ( *page_min <= v && max_diff >= abs(v - *page_min) ) {
+                  unsorted_min_index.push_back(itemindex);
+                  count_pages_scanned = itemindex;
+                }
+              }
+           break;
+         }
+         case Type::INT64:
+         {
+             int64_t v = *((int64_t*) predicate);
+             if (with_bloom_filter && !blf.FindHash(blf.Hash(v))) {
+                 return;
+             }
+             
+             
+             for (uint64_t itemindex = 0;itemindex < offset_index.page_locations.size();itemindex++) {
+                int64_t* page_min = (int64_t*)(void *)col_index.min_values[itemindex].c_str();
+                int64_t* page_max = (int64_t*)(void *)col_index.max_values[itemindex].c_str();
+                int64_t max_diff = *page_max - *page_min;
+           
+                if ( *page_min <= v && max_diff >= abs(v - *page_min) ) {
+                  unsorted_min_index.push_back(itemindex);
+                  count_pages_scanned = itemindex;
+                }
+              }
+
+            break;
+         }
+         case Type::INT96:
+         {
+           break;
+         }
+         case Type::FLOAT:
+         {
+             float v = *((float*) predicate);
+             if (with_bloom_filter && !blf.FindHash(blf.Hash(v))) {
+                 return;
+             }
+             
+             
+             for (uint64_t itemindex = 0;itemindex < offset_index.page_locations.size();itemindex++) {
+                float* page_min = (float*)(void *)col_index.min_values[itemindex].c_str();
+                float* page_max = (float*)(void *)col_index.max_values[itemindex].c_str();
+             
+                auto epsilon = std::numeric_limits<float>::epsilon();
+                float error_factor = 9*pow(10,15);
+                float max_diff = *page_max - *page_min;
+
+                if ( fabs(max_diff - (fabs(v-*page_min)+fabs(*page_max-v))) <= error_factor*epsilon ) {
+
+                  unsorted_min_index.push_back(itemindex);
+                  count_pages_scanned = itemindex;
+
+                }
+             }
+
+           break;
+         }
+         case Type::DOUBLE:
+         {
+             double v = *((double*) predicate);
+             if (with_bloom_filter && !blf.FindHash(blf.Hash(v))) {
+                 return;
+             }
+             
+             
+              for (uint64_t itemindex = 0;itemindex < offset_index.page_locations.size();itemindex++) {
+                double* page_min = (double*)(void *)col_index.min_values[itemindex].c_str();
+                double* page_max = (double*)(void *)col_index.max_values[itemindex].c_str();
+                double max_diff = *page_max - *page_min;
+
+                auto epsilon = std::numeric_limits<double>::epsilon();
+                double error_factor = 9*pow(10,15);
+
+                if ( fabs(max_diff - (fabs(v-*page_min)+fabs(*page_max-v))) <= error_factor*epsilon  ) {
+
+                  unsorted_min_index.push_back(itemindex);
+                  count_pages_scanned = itemindex;
+                }
+              }
+
+           break;
+         }
+         case Type::BYTE_ARRAY:
+         {
+             char* v = (char*) predicate;
+
+             uint8_t ptr = *v;
+             ByteArray pba((uint32_t)strlen(v),&ptr);
+             if (with_bloom_filter && !blf.FindHash(blf.Hash(&pba))) {
+                 return;
+             }
+
+             std::string str(v);
+             
+             for (uint64_t itemindex = 0;itemindex < offset_index.page_locations.size();itemindex++) {
+                std::string page_min_orig = col_index.min_values[itemindex];
+                std::string page_max_orig = col_index.max_values[itemindex];
+                std::string page_min(page_min_orig.substr(page_min_orig.length()-str.length(),str.length()));
+                std::string page_max(page_max_orig.substr(page_max_orig.length()-str.length(),str.length()));
+
+                if ( str.compare(page_min)>0 && str.compare(page_max)<0 ) {
+                  unsorted_min_index.push_back(itemindex);
+                  count_pages_scanned = itemindex;
+                }
+             }
+
+           break;
+         }
+         case Type::FIXED_LEN_BYTE_ARRAY:
+         {
+             
+           break;
+         }
+         default:
+         {
+           parquet::ParquetException::NYI("type reader not implemented");
+         }
+      }
+      
+      if (with_page_bf)
+         page_bloom_filter_has_value(source_,properties_,predicate, offset_index,unsorted_min_index,type_num, unsorted_row_index);
+      else {
+          for (int64_t min_index : unsorted_min_index)
+            unsorted_row_index.push_back(offset_index.page_locations[min_index].first_row_index);
+      }
+         
+  }
+
 
   void GetPageWithRowIndex(int64_t& page_index, parquet::format::OffsetIndex offset_index, int64_t& row_index) const {
       
@@ -820,7 +1036,8 @@ class SerializedRowGroup : public RowGroupReader::Contents {
 
   std::unique_ptr<PageReader> GetColumnPageReaderWithIndex(int column_index, void* predicate, int64_t& min_index, 
                               int predicate_col, int64_t& row_index,Type::type type_num, bool with_binarysearch, int64_t& count_pages_scanned,
-                              int64_t& total_num_pages, int64_t& last_first_row, bool with_bloom_filter, bool with_page_bf) {
+                              int64_t& total_num_pages, int64_t& last_first_row, bool with_bloom_filter, bool with_page_bf,
+                              std::vector<int64_t>& unsorted_min_index, std::vector<int64_t>& unsorted_row_index) {
     // Read column chunk from the file
     auto col = row_group_metadata_->ColumnChunk(column_index);
 
@@ -845,8 +1062,16 @@ class SerializedRowGroup : public RowGroupReader::Contents {
         DeserializeBloomFilter(*reinterpret_cast<ColumnChunkMetaData*>(col.get()),blf,source_,properties_);
         total_num_pages = offset_index.page_locations.size();
         last_first_row = offset_index.page_locations[offset_index.page_locations.size()-1].first_row_index;
-        if ( predicate_col == column_index )
-            GetPageIndex(source_, properties_, predicate, min_index,row_index, col_index,offset_index,type_num,with_binarysearch, count_pages_scanned, blf, with_bloom_filter, with_page_bf);
+        if ( predicate_col == column_index ) {
+            bool sorted = isSorted(col_index,offset_index,type_num);
+            if ( sorted )
+              GetPageIndex(source_, properties_, predicate, min_index,row_index, col_index,offset_index,type_num,sorted, with_binarysearch, count_pages_scanned, blf, with_bloom_filter, with_page_bf);    
+            else
+            {
+              GetPageIndex(source_, properties_, predicate, unsorted_min_index,unsorted_row_index, col_index,offset_index,type_num,sorted, with_binarysearch, count_pages_scanned, blf, with_bloom_filter, with_page_bf);    
+            }
+            
+        }
         else 
            GetPageWithRowIndex(min_index, offset_index, row_index);
     }
