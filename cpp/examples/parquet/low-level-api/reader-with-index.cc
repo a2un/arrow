@@ -180,21 +180,26 @@ int parquet_reader(int argc,char** argv) {
      int num_columns = file_metadata->num_columns();
      //      assert(num_columns == NUM_COLS);
 
-     if ( argc == 3 ){
+     if ( argc == 4 ){
         // Point Queries & range queries
         
         int64_t num_rows = 0;
         int num_queries = 1000;
         int num_runs = 5;
 
+        char *col_num = argv[3];
+       std::stringstream ss(col_num);
+       int col_id;
+       ss >> col_id;
+
         getnumrows(argv[2],num_rows);
         
         trun times_by_type[num_columns];
         std::ofstream runfile;
-        runfile.open(PARQUET_FILENAME+"-run-results.txt");
+        runfile.open(PARQUET_FILENAME+"-"+std::to_string(col_id)+"-run-results.txt");
         runfile << time(NULL) << std::endl;
         runfile << "############################## --  RUNNING POINT QUERIES -- ########################################" << std::endl;
-        for ( int col_id = 0; col_id < num_columns; col_id++){
+        //for ( int col_id = 0; col_id < num_columns; col_id++){
                   
           times_by_type[col_id].w_index = 0.0;
           times_by_type[col_id].wo_index = 0.0;
@@ -207,10 +212,10 @@ int parquet_reader(int argc,char** argv) {
           times_by_type[col_id].wo_total_pages_scanned = 0.0;
           times_by_type[col_id].w_total_pages_scanned = 0.0;
           times_by_type[col_id].b_total_pages_scanned = 0.0;
-        }
+        //}
         
         // for each column so many queries run so many times.
-        for ( int col_id =0; col_id < num_columns; col_id++){
+        //for ( int col_id =0; col_id < num_columns; col_id++){
          // for that column so many runs
           for(int i=0; i < num_runs; i++){    
             int predicateindex = 0;
@@ -241,11 +246,11 @@ int parquet_reader(int argc,char** argv) {
               predicateindex++;
             }
           }
-        }
+        //}
 
         runfile << "############################### -- POINT QUERY RUN TIME RESULTS FINAL -- ################################" << std::endl;
 
-        for (int col_id = 0; col_id < num_columns; col_id++ ) {
+        //for (int col_id = 0; col_id < num_columns; col_id++ ) {
           runfile<< "|----------------------------col_num " << col_id << "----------------------------|" << std::endl;
           
           runfile << std::setprecision(3)  <<"POINT QUERY: minimum average time w/o index " 
@@ -265,17 +270,18 @@ int parquet_reader(int argc,char** argv) {
             
           runfile<< "|----------------------------------------------------------------------------------|" << std::endl;
 
-        }
+        //}
         runfile << "#######################################################################################################" << std::endl;
         runfile.close();
-      }
+      //}
 
-     if ( argc == 4 ) {
-       char *col_num = argv[2];
-       std::stringstream ss(col_num);
-       int colid;
-       ss >> colid;
-        run_for_one_predicate(num_columns,num_row_groups,parquet_reader,colid,argv,3,0,true,true,true);
+    //  if ( argc == 4 ) {
+    //    char *col_num = argv[2];
+    //    std::stringstream ss(col_num);
+    //    int colid;
+    //    ss >> colid;
+    //     run_for_one_predicate(num_columns,num_row_groups,parquet_reader,colid,argv,3,0,true,true,true);
+    //  }
      }
 
      if ( argc == 5 ){
@@ -507,8 +513,8 @@ int64_t first_pass_for_predicate_only(std::shared_ptr<parquet::RowGroupReader> r
           } 
         }
         // Read all the rows in the column
-        std::cout << "| page index: " << page_index << "| number of column indices scanned: " << count_pages_scanned <<
-        "| total number of pages: " << ((total_num_pages!=0)?total_num_pages:ind) << "| last page first row index: " << last_first_row << std::endl;
+        std::cout << "| page index: " << page_index << "| number of rows loaded: " << ind <<
+        "| total number of pages: " << total_num_pages << "| last page first row index: " << last_first_row << std::endl;
         
       }
       else{

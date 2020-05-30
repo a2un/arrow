@@ -138,45 +138,46 @@ void writecols(int NUM_ROWS_PER_ROW_GROUP,parquet::RowGroupWriter*& rg_writer,in
 void writecolswithindex(int NUM_ROWS_PER_ROW_GROUP,parquet::RowGroupWriter*& rg_writer,int32_t int32factor,int64_t int64factor, float float_factor,double double_factor,int FIXED_LENGTH){
     
     rg_writer->InitBloomFilter(NUM_ROWS_PER_ROW_GROUP);
+    uint32_t num_bytes = 0;
     // Write the Int32 column
     parquet::Int32Writer* int32_writer =
-        static_cast<parquet::Int32Writer*>(rg_writer->NextColumnWithIndex());
+        static_cast<parquet::Int32Writer*>(rg_writer->NextColumnWithIndex(num_bytes));
     for (int i = 0; i < NUM_ROWS_PER_ROW_GROUP; i++) {
       int32_t value = i*int32factor;
       int32_writer->WriteBatch(1, nullptr, nullptr, &value, true);
       rg_writer->AppendRowGroupBloomFilter(value);
     }
-    
+    std::cout << "number of bytes int32 " << num_bytes/NUM_ROWS_PER_ROW_GROUP << std::endl;
     // Write the Int64 column. Each row has not[repeats twice].
     parquet::Int64Writer* int64_writer =
-        static_cast<parquet::Int64Writer*>(rg_writer->NextColumnWithIndex());
+        static_cast<parquet::Int64Writer*>(rg_writer->NextColumnWithIndex(num_bytes));
     for (int i = 0; i < NUM_ROWS_PER_ROW_GROUP; i++) {
       int64_t value = i*int64factor;
       int64_writer->WriteBatch(1, nullptr,nullptr, &value, true);
       rg_writer->AppendRowGroupBloomFilter(value);
     }
-
+    std::cout << "number of bytes int64 " << num_bytes/NUM_ROWS_PER_ROW_GROUP << std::endl;
     // Write the Float column
     parquet::FloatWriter* float_writer =
-        static_cast<parquet::FloatWriter*>(rg_writer->NextColumnWithIndex());
+        static_cast<parquet::FloatWriter*>(rg_writer->NextColumnWithIndex(num_bytes));
     for (int i = 0; i < NUM_ROWS_PER_ROW_GROUP; i++) {
       float value = static_cast<float>(i) * float_factor;//1.1f;
       float_writer->WriteBatch(1, nullptr, nullptr, &value, true);
       rg_writer->AppendRowGroupBloomFilter(value);
     }
-
+    std::cout << "number of bytes float " << num_bytes/NUM_ROWS_PER_ROW_GROUP << std::endl;
     // Write the Double column
     parquet::DoubleWriter* double_writer =
-        static_cast<parquet::DoubleWriter*>(rg_writer->NextColumnWithIndex());
+        static_cast<parquet::DoubleWriter*>(rg_writer->NextColumnWithIndex(num_bytes));
     for (int i = 0; i < NUM_ROWS_PER_ROW_GROUP; i++) {
       double value = i * double_factor;//1.1111111;
       double_writer->WriteBatch(1, nullptr, nullptr, &value, true);
       rg_writer->AppendRowGroupBloomFilter(value);
     }
-
+    std::cout << "number of bytes double " << num_bytes/NUM_ROWS_PER_ROW_GROUP << std::endl;
     // Write the ByteArray column. Make every alternate values NULL
     parquet::ByteArrayWriter* ba_writer =
-        static_cast<parquet::ByteArrayWriter*>(rg_writer->NextColumnWithIndex());
+        static_cast<parquet::ByteArrayWriter*>(rg_writer->NextColumnWithIndex(num_bytes));
     for (int i = 0; i < NUM_ROWS_PER_ROW_GROUP; i++) {
       parquet::ByteArray value;
       char hello[FIXED_LENGTH];// = "parquet";
@@ -200,51 +201,56 @@ void writecolswithindex(int NUM_ROWS_PER_ROW_GROUP,parquet::RowGroupWriter*& rg_
         rg_writer->AppendRowGroupBloomFilter(&value);
       }
     }
+    std::cout << "number of bytes bytearray " << num_bytes/NUM_ROWS_PER_ROW_GROUP << std::endl;
 }
 
 void writecolswithindexunsorted(int NUM_ROWS_PER_ROW_GROUP,parquet::RowGroupWriter*& rg_writer,int32_t int32factor,int64_t int64factor, float float_factor,double double_factor,int FIXED_LENGTH){
     
     rg_writer->InitBloomFilter(NUM_ROWS_PER_ROW_GROUP);
+    uint32_t num_bytes = 0;
     srand(time(NULL));
     // Write the Int32 column
     parquet::Int32Writer* int32_writer =
-        static_cast<parquet::Int32Writer*>(rg_writer->NextColumnWithIndex());
+        static_cast<parquet::Int32Writer*>(rg_writer->NextColumnWithIndex(num_bytes));
     for (int i = 0; i < NUM_ROWS_PER_ROW_GROUP; i++) {
       int32_t value = rand()%NUM_ROWS_PER_ROW_GROUP;
       int32_writer->WriteBatch(1, nullptr, nullptr, &value, true);
       rg_writer->AppendRowGroupBloomFilter(value);
     }
+    std::cout << "number of bytes int32 " << num_bytes/NUM_ROWS_PER_ROW_GROUP << std::endl;
     srand(time(NULL));
     // Write the Int64 column. Each row has not[repeats twice].
     parquet::Int64Writer* int64_writer =
-        static_cast<parquet::Int64Writer*>(rg_writer->NextColumnWithIndex());
+        static_cast<parquet::Int64Writer*>(rg_writer->NextColumnWithIndex(num_bytes));
     for (int i = 0; i < NUM_ROWS_PER_ROW_GROUP; i++) {
       int64_t value = rand()%NUM_ROWS_PER_ROW_GROUP;
       int64_writer->WriteBatch(1, nullptr,nullptr, &value, true);
       rg_writer->AppendRowGroupBloomFilter(value);
     }
+    std::cout << "number of bytes int64 " << num_bytes/NUM_ROWS_PER_ROW_GROUP << std::endl;
     srand(time(NULL));
     // Write the Float column
     parquet::FloatWriter* float_writer =
-        static_cast<parquet::FloatWriter*>(rg_writer->NextColumnWithIndex());
+        static_cast<parquet::FloatWriter*>(rg_writer->NextColumnWithIndex(num_bytes));
     for (int i = 0; i < NUM_ROWS_PER_ROW_GROUP; i++) {
       float value = static_cast<float>(rand()%NUM_ROWS_PER_ROW_GROUP) * float_factor;//1.1f;
       float_writer->WriteBatch(1, nullptr, nullptr, &value, true);
       rg_writer->AppendRowGroupBloomFilter(value);
     }
-
+    std::cout << "number of bytes float " << num_bytes/NUM_ROWS_PER_ROW_GROUP << std::endl;
     // Write the Double column
     parquet::DoubleWriter* double_writer =
-        static_cast<parquet::DoubleWriter*>(rg_writer->NextColumnWithIndex());
+        static_cast<parquet::DoubleWriter*>(rg_writer->NextColumnWithIndex(num_bytes));
     for (int i = 0; i < NUM_ROWS_PER_ROW_GROUP; i++) {
       double value = rand()%NUM_ROWS_PER_ROW_GROUP * double_factor;//1.1111111;
       double_writer->WriteBatch(1, nullptr, nullptr, &value, true);
       rg_writer->AppendRowGroupBloomFilter(value);
     }
+    std::cout << "number of bytes double " << num_bytes/NUM_ROWS_PER_ROW_GROUP << std::endl;
     srand(time(NULL));
     // Write the ByteArray column. Make every alternate values NULL
     parquet::ByteArrayWriter* ba_writer =
-        static_cast<parquet::ByteArrayWriter*>(rg_writer->NextColumnWithIndex());
+        static_cast<parquet::ByteArrayWriter*>(rg_writer->NextColumnWithIndex(num_bytes));
     for (int i = 0; i < NUM_ROWS_PER_ROW_GROUP; i++) {
       parquet::ByteArray value;
       char hello[FIXED_LENGTH];// = "parquet";
@@ -268,6 +274,7 @@ void writecolswithindexunsorted(int NUM_ROWS_PER_ROW_GROUP,parquet::RowGroupWrit
         rg_writer->AppendRowGroupBloomFilter(&value);
       }
     }
+    std::cout << "number of bytes ByteArray " << num_bytes/NUM_ROWS_PER_ROW_GROUP << std::endl;
 }
 
 void writeparquet(int NUM_ROWS_PER_ROW_GROUP) {

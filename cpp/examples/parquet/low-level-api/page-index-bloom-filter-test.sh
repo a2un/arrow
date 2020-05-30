@@ -1,25 +1,57 @@
-$ARROW_HOME/build/debug/parquet-writer-with-pageindex  10000000
+$ARROW_HOME/build/debug/parquet-writer-with-pageindex  $1
 
 mkdir -p $ARROW_HOME/build/debug/tests/nonmember    
 mkdir -p $ARROW_HOME/build/debug/tests/member 
 
-cp parquet_cpp_example_10000000_sorted.parquet member      
-cp parquet_cpp_example_10000000_sorted.parquet nonmember   
-cp parquet_cpp_example_10000000_unsorted.parquet member     
-cp parquet_cpp_example_10000000_unsorted.parquet nonmember 
+cp parquet_cpp_example_$1_sorted.parquet $ARROW_HOME/build/debug/tests/member       
+cp parquet_cpp_example_$1_sorted.parquet $ARROW_HOME/build/debug/tests/nonmember   
+cp parquet_cpp_example_$1_unsorted.parquet $ARROW_HOME/build/debug/tests/member      
+cp parquet_cpp_example_$1_unsorted.parquet $ARROW_HOME/build/debug/tests/nonmember 
 
 ## member queries
-cd $ARROW_HOME/build/debug/tests/member
-$ARROW_HOME/build/debug/parquet-reader-with-pageindex parquet_cpp_example_10000000_sorted.parquet   10000000  >> debug_m_10Ms  &
+echo "Launching member queries.."
+$ARROW_HOME/build/debug/parquet-reader-with-pageindex $ARROW_HOME/build/debug/tests/member/parquet_cpp_example_$1_sorted.parquet   $1/100 0 >> $ARROW_HOME/build/debug/tests/member/debug_m_10M_int32_s  &
 
-$ARROW_HOME/build/debug/parquet-reader-with-pageindex parquet_cpp_example_10000000_unsorted.parquet  10000000  >> debug_m_10Mu &
+$ARROW_HOME/build/debug/parquet-reader-with-pageindex $ARROW_HOME/build/debug/tests/member/parquet_cpp_example_$1_unsorted.parquet  $1/100 0 >> $ARROW_HOME/build/debug/tests/member/debug_m_10M_int32_u &
+
+$ARROW_HOME/build/debug/parquet-reader-with-pageindex $ARROW_HOME/build/debug/tests/member/parquet_cpp_example_$1_sorted.parquet   $1/100 1 >> $ARROW_HOME/build/debug/tests/member/debug_m_10M_int64_s  &
+
+$ARROW_HOME/build/debug/parquet-reader-with-pageindex $ARROW_HOME/build/debug/tests/member/parquet_cpp_example_$1_unsorted.parquet  $1/100 1 >> $ARROW_HOME/build/debug/tests/member/debug_m_10M_int64_u &
+
+$ARROW_HOME/build/debug/parquet-reader-with-pageindex $ARROW_HOME/build/debug/tests/member/parquet_cpp_example_$1_sorted.parquet   $1/100 2 >> $ARROW_HOME/build/debug/tests/member/debug_m_10M_float_s  &
+
+$ARROW_HOME/build/debug/parquet-reader-with-pageindex $ARROW_HOME/build/debug/tests/member/parquet_cpp_example_$1_unsorted.parquet  $1/100 2 >> $ARROW_HOME/build/debug/tests/member/debug_m_10M_float_u &
+
+$ARROW_HOME/build/debug/parquet-reader-with-pageindex $ARROW_HOME/build/debug/tests/member/parquet_cpp_example_$1_sorted.parquet   $1/100 3 >> $ARROW_HOME/build/debug/tests/member/debug_m_10M_double_s  &
+
+$ARROW_HOME/build/debug/parquet-reader-with-pageindex $ARROW_HOME/build/debug/tests/member/parquet_cpp_example_$1_unsorted.parquet  $1/100 3 >> $ARROW_HOME/build/debug/tests/member/debug_m_10M_double_u &
+
+$ARROW_HOME/build/debug/parquet-reader-with-pageindex $ARROW_HOME/build/debug/tests/member/parquet_cpp_example_$1_sorted.parquet   $1/100 4 >> $ARROW_HOME/build/debug/tests/member/debug_m_10M_ByteArray_s  &
+
+$ARROW_HOME/build/debug/parquet-reader-with-pageindex $ARROW_HOME/build/debug/tests/member/parquet_cpp_example_$1_unsorted.parquet  $1/100 4 >> $ARROW_HOME/build/debug/tests/member/debug_m_10M_ByteArray_u &
 
 
 
 ## non-member queries
-cd $ARROW_HOME/build/debug/tests/nonmember
-$ARROW_HOME/build/debug/parquet-reader-with-pageindex parquet_cpp_example_10000000_sorted.parquet   100000000  >> debug_n_10Ms &
+echo "launching non-member queries.."
+$ARROW_HOME/build/debug/parquet-reader-with-pageindex $ARROW_HOME/build/debug/tests/nonmember/parquet_cpp_example_$1_sorted.parquet   $1 0 >> $ARROW_HOME/build/debug/tests/nonmember/debug_n_10M_int32_s  &
 
-$ARROW_HOME/build/debug/parquet-reader-with-pageindex parquet_cpp_example_10000000_unsorted.parquet  100000000  >> debug_n_10Mu &
+$ARROW_HOME/build/debug/parquet-reader-with-pageindex $ARROW_HOME/build/debug/tests/nonmember/parquet_cpp_example_$1_unsorted.parquet  $1 0 >> $ARROW_HOME/build/debug/tests/nonmember/debug_n_10M_int32_u &
+
+$ARROW_HOME/build/debug/parquet-reader-with-pageindex $ARROW_HOME/build/debug/tests/nonmember/parquet_cpp_example_$1_sorted.parquet   $1 1 >> $ARROW_HOME/build/debug/tests/nonmember/debug_n_10M_int64_s  &
+
+$ARROW_HOME/build/debug/parquet-reader-with-pageindex $ARROW_HOME/build/debug/tests/nonmember/parquet_cpp_example_$1_unsorted.parquet  $1 1 >> $ARROW_HOME/build/debug/tests/nonmember/debug_n_10M_int64_u &
+
+$ARROW_HOME/build/debug/parquet-reader-with-pageindex $ARROW_HOME/build/debug/tests/nonmember/parquet_cpp_example_$1_sorted.parquet   $1 2 >> $ARROW_HOME/build/debug/tests/nonmember/debug_n_10M_float_s  &
+
+$ARROW_HOME/build/debug/parquet-reader-with-pageindex $ARROW_HOME/build/debug/tests/nonmember/parquet_cpp_example_$1_unsorted.parquet  $1 2 >> $ARROW_HOME/build/debug/tests/nonmember/debug_n_10M_float_u &
+
+$ARROW_HOME/build/debug/parquet-reader-with-pageindex $ARROW_HOME/build/debug/tests/nonmember/parquet_cpp_example_$1_sorted.parquet   $1 3 >> $ARROW_HOME/build/debug/tests/nonmember/debug_n_10M_double_s  &
+
+$ARROW_HOME/build/debug/parquet-reader-with-pageindex $ARROW_HOME/build/debug/tests/nonmember/parquet_cpp_example_$1_unsorted.parquet  $1 3 >> $ARROW_HOME/build/debug/tests/nonmember/debug_n_10M_double_u &
+
+$ARROW_HOME/build/debug/parquet-reader-with-pageindex $ARROW_HOME/build/debug/tests/nonmember/parquet_cpp_example_$1_sorted.parquet   $1 4 >> $ARROW_HOME/build/debug/tests/nonmember/debug_n_10M_ByteArray_s  &
+
+$ARROW_HOME/build/debug/parquet-reader-with-pageindex $ARROW_HOME/build/debug/tests/nonmember/parquet_cpp_example_$1_unsorted.parquet  $1 4 >> $ARROW_HOME/build/debug/tests/nonmember/debug_n_10M_ByteArray_u &
 
 cd ..
