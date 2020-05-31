@@ -252,15 +252,17 @@ void writecolswithindexunsorted(int NUM_ROWS_PER_ROW_GROUP,parquet::RowGroupWrit
 
 void writeparquetwithindex(int NUM_ROWS_PER_ROW_GROUP,int type) {
   const char* filename_1 = "parquet_cpp_example_";
-  const char* filename_2 = std::to_string(NUM_ROWS_PER_ROW_GROUP).c_str();
-  const char* filename_3 = "_sorted.parquet";
-  const char* filename_4 = std::to_string(type).c_str();
+  std::string s1(std::to_string(NUM_ROWS_PER_ROW_GROUP));
+  std::string s2(std::to_string(type));
+  const char* filename_2 = s1.c_str();
+  const char* filename_3 = s2.c_str();
+  const char* filename_4 = "_sorted.parquet";
 
-  char PARQUET_FILENAME[strlen(filename_1) + strlen(filename_2) + strlen(filename_4) + strlen(filename_3)];
+  char PARQUET_FILENAME[strlen(filename_1) + strlen(filename_2) + strlen(filename_3) + strlen(filename_4)];
   strcpy(PARQUET_FILENAME,filename_1);
   strcat(PARQUET_FILENAME,filename_2);
-  strcat(PARQUET_FILENAME,filename_4);
   strcat(PARQUET_FILENAME,filename_3);
+  strcat(PARQUET_FILENAME,filename_4);
   /**********************************************************************************
                              PARQUET WRITER EXAMPLE
   **********************************************************************************/
@@ -324,15 +326,17 @@ void writeparquetwithindex(int NUM_ROWS_PER_ROW_GROUP,int type) {
 
 void writeparquetwithindexunsorted(int NUM_ROWS_PER_ROW_GROUP, int type) {
   const char* filename_1 = "parquet_cpp_example_";
-  const char* filename_2 = std::to_string(NUM_ROWS_PER_ROW_GROUP).c_str();
-  const char* filename_3 = "_unsorted.parquet";
-  const char* filename_4 = std::to_string(type).c_str();;
-
-  char PARQUET_FILENAME[strlen(filename_1) + strlen(filename_2) + strlen(filename_4) + strlen(filename_3)];
+  std::string s1(std::to_string(NUM_ROWS_PER_ROW_GROUP));
+  std::string s2(std::to_string(type));
+  const char* filename_2 = s1.c_str();
+  const char* filename_3 = s2.c_str();
+  const char* filename_4 = "_sorted.parquet";
+  
+  char PARQUET_FILENAME[strlen(filename_1) + strlen(filename_2) + strlen(filename_3) + strlen(filename_4)];
   strcpy(PARQUET_FILENAME,filename_1);
   strcat(PARQUET_FILENAME,filename_2);
-  strcat(PARQUET_FILENAME,filename_4);
   strcat(PARQUET_FILENAME,filename_3);
+  strcat(PARQUET_FILENAME,filename_4);
   /**********************************************************************************
                              PARQUET WRITER EXAMPLE
   **********************************************************************************/

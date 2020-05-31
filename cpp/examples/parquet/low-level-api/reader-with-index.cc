@@ -198,6 +198,7 @@ int parquet_reader(int argc,char** argv) {
         trun times_by_type[num_columns];
         std::ofstream runfile;
         runfile.open(PARQUET_FILENAME+"-"+std::to_string(col_id)+"-run-results.txt");
+        col_id = 0;
         runfile << time(NULL) << std::endl;
         runfile << "############################## --  RUNNING POINT QUERIES -- ########################################" << std::endl;
         //for ( int col_id = 0; col_id < num_columns; col_id++){
