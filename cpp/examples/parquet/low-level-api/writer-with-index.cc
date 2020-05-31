@@ -404,11 +404,13 @@ void writeparquetwithindexunsorted(int NUM_ROWS_PER_ROW_GROUP, int type) {
 
 
 int main(int argc, char** argv) {
-  if (argc == 3){
+  if (argc == 4){
     int NUM_ROWS_PER_ROW_GROUP = atoi(argv[1]);
     
-    writeparquetwithindex(NUM_ROWS_PER_ROW_GROUP,atoi(argv[2]));
-    writeparquetwithindexunsorted(NUM_ROWS_PER_ROW_GROUP,atoi(argv[2]));
+    if (atoi(argv[3]))
+        writeparquetwithindex(NUM_ROWS_PER_ROW_GROUP,atoi(argv[2]));
+    else
+       writeparquetwithindexunsorted(NUM_ROWS_PER_ROW_GROUP,atoi(argv[2]));
   }
   
   std::cout << "Parquet Writing and Reading Complete" << std::endl;
