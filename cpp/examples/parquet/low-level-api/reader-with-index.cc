@@ -181,7 +181,7 @@ int parquet_reader(int argc,char** argv) {
      int num_columns = file_metadata->num_columns();
      //      assert(num_columns == NUM_COLS);
 
-     if ( argc == 4 ){
+     if ( argc == 3 ){
         // Point Queries & range queries
         
         int64_t num_rows = 0;
@@ -277,13 +277,13 @@ int parquet_reader(int argc,char** argv) {
         runfile.close();
       }
 
-    //  if ( argc == 4 ) {
-    //    char *col_num = argv[2];
-    //    std::stringstream ss(col_num);
-    //    int colid;
-    //    ss >> colid;
-    //     run_for_one_predicate(num_columns,num_row_groups,parquet_reader,colid,argv,3,0,true,true,true);
-    //  }
+     if ( argc == 4 ) {
+       char *col_num = argv[2];
+       std::stringstream ss(col_num);
+       int colid;
+       ss >> colid;
+        run_for_one_predicate(num_columns,num_row_groups,parquet_reader,colid,argv,3,0,true,true,true);
+     }
      
 
      if ( argc == 5 ){

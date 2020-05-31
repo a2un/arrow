@@ -93,7 +93,7 @@ void RowGroupWriter::InitBloomFilter(int num_rows,uint32_t& num_bytes) {
 
 ColumnWriter* RowGroupWriter::NextColumn() { return contents_->NextColumn(); }
 
-ColumnWriter* RowGroupWriter::NextColumnWithIndex() { return contents_->NextColumnWithIndex(); }
+ColumnWriter* RowGroupWriter::NextColumnWithIndex(uint32_t& num_bytes) { return contents_->NextColumnWithIndex(num_bytes); }
 
 ColumnWriter* RowGroupWriter::column(int i) { return contents_->column(i); }
 
@@ -178,7 +178,7 @@ class RowGroupSerializer : public RowGroupWriter::Contents {
     return column_writers_[0].get();
   }
 
-  ColumnWriter* NextColumnWithIndex() override {
+  ColumnWriter* NextColumnWithIndex(uint32_t& num_bytes) override {
     use_index = true;
     if (buffered_row_group_) {
       throw ParquetException(
@@ -201,7 +201,8 @@ class RowGroupSerializer : public RowGroupWriter::Contents {
     //total_bytes_written_ += blf_[next_column_index_].GetBitsetSize();
     if ( column_writers_[0] ) {
       // next column bloom filter initialized
-      blf_[next_column_index_].Init(blf_[next_column_index_].OptimalNumOfBits(column_writers_[0]->rows_written() , false_positive_prob));
+      num_bytes = blf_[next_column_index_].OptimalNumOfBits(column_writers_[0]->rows_written() , false_positive_prob);
+      blf_[next_column_index_].Init(num_bytes);
       
       //current column writer saved for future use
       all_used_cws_.push_back(column_writers_[0]);

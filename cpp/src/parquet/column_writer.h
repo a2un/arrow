@@ -201,8 +201,7 @@ class TypedColumnWriter : public ColumnWriter {
 
   // Estimated size of the values that are not written to a page yet
   virtual int64_t EstimatedBufferedValueBytes() const = 0;
-
-  virtual void SetBloomFilterNumRows(int NUM_ROWS_PER_ROW_GROUP) = 0;
+  
 };
 
 using BoolWriter = TypedColumnWriter<BooleanType>;

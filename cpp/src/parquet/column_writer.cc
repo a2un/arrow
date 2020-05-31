@@ -1115,12 +1115,6 @@ class TypedColumnWriterImpl : public ColumnWriterImpl, public TypedColumnWriter<
 
   const WriterProperties* properties() override { return properties_; }
 
-
-  void SetBloomFilterNumRows(int num_bf_rows) override {
-     num_rows_for_bf = num_bf_rows;
-  }
-
-
  private:
   using ValueEncoderType = typename EncodingTraits<DType>::Encoder;
   using TypedStats = TypedStatistics<DType>;
@@ -1130,7 +1124,7 @@ class TypedColumnWriterImpl : public ColumnWriterImpl, public TypedColumnWriter<
 
   std::vector<BlockSplitBloomFilter> blf;
   int num_rows_for_bf;
-  const double fpp = 0.01;
+  const double fpp = 0.001;
 
   inline int64_t WriteMiniBatch(int64_t num_values, const int16_t* def_levels,
                                 const int16_t* rep_levels, const T* values, bool with_index);
@@ -1203,14 +1197,14 @@ class TypedColumnWriterImpl : public ColumnWriterImpl, public TypedColumnWriter<
   void InitializeBloomF() {
     if (blf.size() == 0) {
       BlockSplitBloomFilter bf;
-      bf.Init(BlockSplitBloomFilter::OptimalNumOfBits(num_rows_for_bf,fpp));
+      bf.Init(BlockSplitBloomFilter::OptimalNumOfBits(properties_->write_batch_size() << 8,fpp));
       blf.push_back(std::move(bf));
     }
   }
 
   void NewPageBloomFilter() {
     BlockSplitBloomFilter bf;
-    bf.Init(BlockSplitBloomFilter::OptimalNumOfBits(num_rows_for_bf,fpp));
+    bf.Init(BlockSplitBloomFilter::OptimalNumOfBits(properties_->write_batch_size() << 8,fpp));
     blf.push_back(std::move(bf));
   }
 
