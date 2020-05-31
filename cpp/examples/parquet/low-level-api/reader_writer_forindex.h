@@ -29,168 +29,43 @@ using parquet::schema::PrimitiveNode;
 
 constexpr int FIXED_LENGTH = 10;
 
-static std::shared_ptr<GroupNode> SetupSchema() {
+static std::shared_ptr<GroupNode> SetupSchema(int type_num) {
   parquet::schema::NodeVector fields;
-  // Create a primitive node named 'boolean_field' with type:BOOLEAN,
-  // repetition:REQUIRED
-//  fields.push_back(PrimitiveNode::Make("boolean_field", Repetition::OPTIONAL,
-//                                       Type::BOOLEAN, ConvertedType::NONE));
 
-  // Create a primitive node named 'int32_field' with type:INT32, repetition:REQUIRED,
-  // logical type:TIME_MILLIS
-  fields.push_back(PrimitiveNode::Make("int32_field1", Repetition::REQUIRED, Type::INT32,
+  switch(type_num) {
+      case 0:{
+        // Create a primitive node named 'int32_field' with type:INT32, repetition:REQUIRED,
+       // logical type:TIME_MILLIS
+         fields.push_back(PrimitiveNode::Make("int32_field1", Repetition::REQUIRED, Type::INT32,
                                        ConvertedType::NONE));
-
-  // Create a primitive node named 'int64_field' with type:INT64, repetition:REPEATED
-  fields.push_back(PrimitiveNode::Make("int64_field1", Repetition::REQUIRED, Type::INT64,
+        break;
+      }
+      case 1:{
+        // Create a primitive node named 'int64_field' with type:INT64, repetition:REPEATED
+        fields.push_back(PrimitiveNode::Make("int64_field1", Repetition::REQUIRED, Type::INT64,
                                        ConvertedType::NONE));
-
-//  fields.push_back(PrimitiveNode::Make("int96_field", Repetition::OPTIONAL, Type::INT96,
-  //                                     ConvertedType::NONE));
-
-  fields.push_back(PrimitiveNode::Make("float_field1", Repetition::REQUIRED, Type::FLOAT,
+        break;
+      }
+      case 2:{
+        fields.push_back(PrimitiveNode::Make("float_field1", Repetition::REQUIRED, Type::FLOAT,
                                        ConvertedType::NONE));
-
-  fields.push_back(PrimitiveNode::Make("double_field1", Repetition::REQUIRED, Type::DOUBLE,
+        break;
+      }
+      case 3:{
+        fields.push_back(PrimitiveNode::Make("double_field1", Repetition::REQUIRED, Type::DOUBLE,
                                        ConvertedType::NONE));
-
-  // Create a primitive node named 'ba_field' with type:BYTE_ARRAY, repetition:OPTIONAL
-  fields.push_back(PrimitiveNode::Make("ba_field1", Repetition::OPTIONAL, Type::BYTE_ARRAY,
+        break;
+      }
+      case 4:{
+        // Create a primitive node named 'ba_field' with type:BYTE_ARRAY, repetition:OPTIONAL
+       fields.push_back(PrimitiveNode::Make("ba_field1", Repetition::OPTIONAL, Type::BYTE_ARRAY,
                                        ConvertedType::NONE));
-
-  
-//   // Create a primitive node named 'int32_field' with type:INT32, repetition:REQUIRED,
-//   // logical type:TIME_MILLIS
-//   fields.push_back(PrimitiveNode::Make("int32_field2", Repetition::REQUIRED, Type::INT32,
-//                                        ConvertedType::NONE));
-
-//   // Create a primitive node named 'int64_field' with type:INT64, repetition:REPEATED
-//   fields.push_back(PrimitiveNode::Make("int64_field2", Repetition::REQUIRED, Type::INT64,
-//                                        ConvertedType::NONE));
-
-// //  fields.push_back(PrimitiveNode::Make("int96_field", Repetition::OPTIONAL, Type::INT96,
-//   //                                     ConvertedType::NONE));
-
-//   fields.push_back(PrimitiveNode::Make("float_field2", Repetition::REQUIRED, Type::FLOAT,
-//                                        ConvertedType::NONE));
-
-//   fields.push_back(PrimitiveNode::Make("double_field2", Repetition::REQUIRED, Type::DOUBLE,
-//                                        ConvertedType::NONE));
-
-//   // Create a primitive node named 'ba_field' with type:BYTE_ARRAY, repetition:OPTIONAL
-//   fields.push_back(PrimitiveNode::Make("ba_field2", Repetition::OPTIONAL, Type::BYTE_ARRAY,
-//                                        ConvertedType::NONE));
-
-//   // Create a primitive node named 'int32_field' with type:INT32, repetition:REQUIRED,
-//   // logical type:TIME_MILLIS
-//   fields.push_back(PrimitiveNode::Make("int32_field3", Repetition::REQUIRED, Type::INT32,
-//                                        ConvertedType::NONE));
-
-//   // Create a primitive node named 'int64_field' with type:INT64, repetition:REPEATED
-//   fields.push_back(PrimitiveNode::Make("int64_field3", Repetition::REQUIRED, Type::INT64,
-//                                        ConvertedType::NONE));
-
-// //  fields.push_back(PrimitiveNode::Make("int96_field", Repetition::OPTIONAL, Type::INT96,
-//   //                                     ConvertedType::NONE));
-
-//   fields.push_back(PrimitiveNode::Make("float_field3", Repetition::REQUIRED, Type::FLOAT,
-//                                        ConvertedType::NONE));
-
-//   fields.push_back(PrimitiveNode::Make("double_field3", Repetition::REQUIRED, Type::DOUBLE,
-//                                        ConvertedType::NONE));
-
-//   // Create a primitive node named 'ba_field' with type:BYTE_ARRAY, repetition:OPTIONAL
-//   fields.push_back(PrimitiveNode::Make("ba_field3", Repetition::OPTIONAL, Type::BYTE_ARRAY,
-//                                        ConvertedType::NONE));
-
-//   // Create a primitive node named 'int32_field' with type:INT32, repetition:REQUIRED,
-//   // logical type:TIME_MILLIS
-//   fields.push_back(PrimitiveNode::Make("int32_field4", Repetition::REQUIRED, Type::INT32,
-//                                        ConvertedType::NONE));
-
-//   // Create a primitive node named 'int64_field' with type:INT64, repetition:REPEATED
-//   fields.push_back(PrimitiveNode::Make("int64_field4", Repetition::REQUIRED, Type::INT64,
-//                                        ConvertedType::NONE));
-
-// //  fields.push_back(PrimitiveNode::Make("int96_field", Repetition::OPTIONAL, Type::INT96,
-//   //                                     ConvertedType::NONE));
-
-//   fields.push_back(PrimitiveNode::Make("float_field4", Repetition::REQUIRED, Type::FLOAT,
-//                                        ConvertedType::NONE));
-
-//   fields.push_back(PrimitiveNode::Make("double_field4", Repetition::REQUIRED, Type::DOUBLE,
-//                                        ConvertedType::NONE));
-
-//   // Create a primitive node named 'ba_field' with type:BYTE_ARRAY, repetition:OPTIONAL
-//   fields.push_back(PrimitiveNode::Make("ba_field4", Repetition::OPTIONAL, Type::BYTE_ARRAY,
-//                                        ConvertedType::NONE));
-
-
-//   fields.push_back(PrimitiveNode::Make("int32_field5", Repetition::REQUIRED, Type::INT32,
-//                                        ConvertedType::NONE));
-
-//   // Create a primitive node named 'int64_field' with type:INT64, repetition:REPEATED
-//   fields.push_back(PrimitiveNode::Make("int64_field5", Repetition::REQUIRED, Type::INT64,
-//                                        ConvertedType::NONE));
-
-// //  fields.push_back(PrimitiveNode::Make("int96_field", Repetition::OPTIONAL, Type::INT96,
-//   //                                     ConvertedType::NONE));
-
-//   fields.push_back(PrimitiveNode::Make("float_field5", Repetition::REQUIRED, Type::FLOAT,
-//                                        ConvertedType::NONE));
-
-//   fields.push_back(PrimitiveNode::Make("double_field5", Repetition::REQUIRED, Type::DOUBLE,
-//                                        ConvertedType::NONE));
-
-//   // Create a primitive node named 'ba_field' with type:BYTE_ARRAY, repetition:OPTIONAL
-//   fields.push_back(PrimitiveNode::Make("ba_field5", Repetition::OPTIONAL, Type::BYTE_ARRAY,
-//                                        ConvertedType::NONE));
-
-//   fields.push_back(PrimitiveNode::Make("int32_field6", Repetition::REQUIRED, Type::INT32,
-//                                        ConvertedType::NONE));
-
-//   // Create a primitive node named 'int64_field' with type:INT64, repetition:REPEATED
-//   fields.push_back(PrimitiveNode::Make("int64_field6", Repetition::REQUIRED, Type::INT64,
-//                                        ConvertedType::NONE));
-
-// //  fields.push_back(PrimitiveNode::Make("int96_field", Repetition::OPTIONAL, Type::INT96,
-//   //                                     ConvertedType::NONE));
-
-//   fields.push_back(PrimitiveNode::Make("float_field6", Repetition::REQUIRED, Type::FLOAT,
-//                                        ConvertedType::NONE));
-
-//   fields.push_back(PrimitiveNode::Make("double_field6", Repetition::REQUIRED, Type::DOUBLE,
-//                                        ConvertedType::NONE));
-
-//   // Create a primitive node named 'ba_field' with type:BYTE_ARRAY, repetition:OPTIONAL
-//   fields.push_back(PrimitiveNode::Make("ba_field6", Repetition::OPTIONAL, Type::BYTE_ARRAY,
-//                                        ConvertedType::NONE));
-  
-//   fields.push_back(PrimitiveNode::Make("int32_field7", Repetition::REQUIRED, Type::INT32,
-//                                        ConvertedType::NONE));
-
-//   // Create a primitive node named 'int64_field' with type:INT64, repetition:REPEATED
-//   fields.push_back(PrimitiveNode::Make("int64_field7", Repetition::REQUIRED, Type::INT64,
-//                                        ConvertedType::NONE));
-
-// //  fields.push_back(PrimitiveNode::Make("int96_field", Repetition::OPTIONAL, Type::INT96,
-//   //                                     ConvertedType::NONE));
-
-//   fields.push_back(PrimitiveNode::Make("float_field7", Repetition::REQUIRED, Type::FLOAT,
-//                                        ConvertedType::NONE));
-
-//   fields.push_back(PrimitiveNode::Make("double_field7", Repetition::REQUIRED, Type::DOUBLE,
-//                                        ConvertedType::NONE));
-
-//   // Create a primitive node named 'ba_field' with type:BYTE_ARRAY, repetition:OPTIONAL
-//   fields.push_back(PrimitiveNode::Make("ba_field7", Repetition::OPTIONAL, Type::BYTE_ARRAY,
-//                                        ConvertedType::NONE));
-                                     
-  // Create a primitive node named 'flba_field' with type:FIXED_LEN_BYTE_ARRAY,
-  // repetition:REQUIRED, field_length = FIXED_LENGTH
-/*  fields.push_back(PrimitiveNode::Make("flba_field", Repetition::REQUIRED,
-                                       Type::FIXED_LEN_BYTE_ARRAY, ConvertedType::NONE,
-                                       FIXED_LENGTH));*/
+        break;
+      }
+      default:{
+        break;
+      }
+  }
 
   // Create a GroupNode named 'schema' using the primitive nodes defined above
   // This GroupNode is the root node of the schema tree
