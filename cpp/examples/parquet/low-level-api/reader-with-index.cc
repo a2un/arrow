@@ -188,20 +188,19 @@ int parquet_reader(int argc,char** argv) {
         int num_queries = 1000;
         int num_runs = 5;
 
-        char *col_num = argv[3];
-       std::stringstream ss(col_num);
-       int col_id;
-       ss >> col_id;
+      //   char *col_num = argv[3];
+      //  std::stringstream ss(col_num);
+      //  int col_id;
+      //  ss >> col_id;
 
         getnumrows(argv[2],num_rows);
         
         trun times_by_type[num_columns];
         std::ofstream runfile;
-        runfile.open(PARQUET_FILENAME+"-"+std::to_string(col_id)+"-run-results.txt");
-        col_id = 0;
+        runfile.open(PARQUET_FILENAME+"-run-results.txt");//+"-"+std::to_string(col_id);
         runfile << time(NULL) << std::endl;
         runfile << "############################## --  RUNNING POINT QUERIES -- ########################################" << std::endl;
-        //for ( int col_id = 0; col_id < num_columns; col_id++){
+        for ( int col_id = 0; col_id < num_columns; col_id++){
                   
           times_by_type[col_id].w_index = 0.0;
           times_by_type[col_id].wo_index = 0.0;
@@ -214,10 +213,10 @@ int parquet_reader(int argc,char** argv) {
           times_by_type[col_id].wo_total_pages_scanned = 0.0;
           times_by_type[col_id].w_total_pages_scanned = 0.0;
           times_by_type[col_id].b_total_pages_scanned = 0.0;
-        //}
+        }
         
         // for each column so many queries run so many times.
-        //for ( int col_id =0; col_id < num_columns; col_id++){
+        for ( int col_id =0; col_id < num_columns; col_id++){
          // for that column so many runs
           for(int i=0; i < num_runs; i++){    
             int predicateindex = 0;
@@ -248,11 +247,9 @@ int parquet_reader(int argc,char** argv) {
               predicateindex++;
             }
           }
-        //}
 
-        runfile << "############################### -- POINT QUERY RUN TIME RESULTS FINAL -- ################################" << std::endl;
+          runfile << "############################### -- POINT QUERY RUN TIME RESULTS FINAL --" << col_id << "-- ################################" << std::endl;
 
-        //for (int col_id = 0; col_id < num_columns; col_id++ ) {
           runfile<< "|----------------------------col_num " << col_id << "----------------------------|" << std::endl;
           
           runfile << std::setprecision(3)  <<"POINT QUERY: minimum average time w/o index " 
@@ -272,7 +269,7 @@ int parquet_reader(int argc,char** argv) {
             
           runfile<< "|----------------------------------------------------------------------------------|" << std::endl;
 
-        //}
+        }
         runfile << "#######################################################################################################" << std::endl;
         runfile.close();
       }
