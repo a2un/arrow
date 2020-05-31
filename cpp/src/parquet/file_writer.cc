@@ -93,7 +93,7 @@ void RowGroupWriter::InitBloomFilter(int num_rows,uint32_t& num_bytes) {
 
 ColumnWriter* RowGroupWriter::NextColumn() { return contents_->NextColumn(); }
 
-ColumnWriter* RowGroupWriter::NextColumnWithIndex(uint32_t& blf_num_bits) { return contents_->NextColumnWithIndex(blf_num_bits); }
+ColumnWriter* RowGroupWriter::NextColumnWithIndex() { return contents_->NextColumnWithIndex(); }
 
 ColumnWriter* RowGroupWriter::column(int i) { return contents_->column(i); }
 
