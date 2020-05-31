@@ -44,7 +44,7 @@ class PARQUET_EXPORT RowGroupWriter {
     // to be used only with ParquetFileWriter::AppendRowGroup
     virtual ColumnWriter* NextColumn() = 0;
 
-    virtual ColumnWriter* NextColumnWithIndex(uint32_t& blf_num_bits) = 0;
+    virtual ColumnWriter* NextColumnWithIndex() = 0;
 
     virtual void AppendRowGroupBloomFilter(int32_t values) = 0;
 
