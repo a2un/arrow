@@ -253,9 +253,11 @@ void writecolswithindexunsorted(int NUM_ROWS_PER_ROW_GROUP,parquet::RowGroupWrit
 void writeparquetwithindex(int NUM_ROWS_PER_ROW_GROUP,int type) {
   const char* filename_1 = "parquet_cpp_example_";
   std::string s1(std::to_string(NUM_ROWS_PER_ROW_GROUP));
+  s1 += "_";
   std::string s2(std::to_string(type));
   const char* filename_2 = s1.c_str();
   const char* filename_3 = s2.c_str();
+  s2 += "_";
   const char* filename_4 = "_sorted.parquet";
 
   char PARQUET_FILENAME[strlen(filename_1) + strlen(filename_2) + strlen(filename_3) + strlen(filename_4)];
@@ -327,9 +329,11 @@ void writeparquetwithindex(int NUM_ROWS_PER_ROW_GROUP,int type) {
 void writeparquetwithindexunsorted(int NUM_ROWS_PER_ROW_GROUP, int type) {
   const char* filename_1 = "parquet_cpp_example_";
   std::string s1(std::to_string(NUM_ROWS_PER_ROW_GROUP));
+  s1 += "_";
   std::string s2(std::to_string(type));
   const char* filename_2 = s1.c_str();
   const char* filename_3 = s2.c_str();
+  s2 += "_";
   const char* filename_4 = "_sorted.parquet";
   
   char PARQUET_FILENAME[strlen(filename_1) + strlen(filename_2) + strlen(filename_3) + strlen(filename_4)];
