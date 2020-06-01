@@ -222,12 +222,16 @@ void writecolswithindexunsorted(int NUM_ROWS_PER_ROW_GROUP,parquet::RowGroupWrit
 
 void writeparquetwithindex(int NUM_ROWS, int num_rg) {
   const char* filename_1 = "parquet_cpp_example_";
-  const char* filename_2 = std::to_string(NUM_ROWS).c_str();
+  std::string s1(std::to_string(NUM_ROWS)+"_");
+  const char* filename_2 = s1.c_str();
+  std::string s2(std::to_string(num_rg));
+  const char* filename_4 = s2.c_str();
   const char* filename_3 = "_sorted.parquet";
 
-  char PARQUET_FILENAME[strlen(filename_1) + strlen(filename_2) + strlen(filename_3)];
+  char PARQUET_FILENAME[strlen(filename_1) + strlen(filename_2) + strlen(filename_4) + strlen(filename_3)];
   strcpy(PARQUET_FILENAME,filename_1);
   strcat(PARQUET_FILENAME,filename_2);
+  strcat(PARQUET_FILENAME,filename_4);
   strcat(PARQUET_FILENAME,filename_3);
   /**********************************************************************************
                              PARQUET WRITER EXAMPLE
@@ -272,12 +276,16 @@ void writeparquetwithindex(int NUM_ROWS, int num_rg) {
 
 void writeparquetwithindexunsorted(int NUM_ROWS, int num_rg) {
   const char* filename_1 = "parquet_cpp_example_";
-  const char* filename_2 = std::to_string(NUM_ROWS).c_str();
+  std::string s1(std::to_string(NUM_ROWS)+"_");
+  const char* filename_2 = s1.c_str();
+  std::string s2(std::to_string(num_rg));
+  const char* filename_4 = s2.c_str();
   const char* filename_3 = "_unsorted.parquet";
   
-  char PARQUET_FILENAME[strlen(filename_1) + strlen(filename_2) + strlen(filename_3)];
+  char PARQUET_FILENAME[strlen(filename_1) + strlen(filename_2) + strlen(filename_4) + strlen(filename_3)];
   strcpy(PARQUET_FILENAME,filename_1);
   strcat(PARQUET_FILENAME,filename_2);
+  strcat(PARQUET_FILENAME,filename_4);
   strcat(PARQUET_FILENAME,filename_3);
   /**********************************************************************************
                              PARQUET WRITER EXAMPLE
