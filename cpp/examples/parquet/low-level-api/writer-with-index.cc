@@ -220,9 +220,9 @@ void writecolswithindexunsorted(int NUM_ROWS_PER_ROW_GROUP,parquet::RowGroupWrit
      
 }
 
-void writeparquetwithindex(int NUM_ROWS_PER_ROW_GROUP) {
+void writeparquetwithindex(int NUM_ROWS, int num_rg) {
   const char* filename_1 = "parquet_cpp_example_";
-  const char* filename_2 = std::to_string(NUM_ROWS_PER_ROW_GROUP).c_str();
+  const char* filename_2 = std::to_string(NUM_ROWS).c_str();
   const char* filename_3 = "_sorted.parquet";
 
   char PARQUET_FILENAME[strlen(filename_1) + strlen(filename_2) + strlen(filename_3)];
@@ -254,31 +254,11 @@ void writeparquetwithindex(int NUM_ROWS_PER_ROW_GROUP) {
         parquet::ParquetFileWriter::Open(out_file, schema, props);
 
     // Append a RowGroup with a specific number of rows.
-    parquet::RowGroupWriter* rg_writer = file_writer->AppendRowGroup();
-
-    // // Write the Bool column
-    // parquet::BoolWriter* bool_writer =
-    //     static_cast<parquet::BoolWriter*>(rg_writer->NextColumn());
-    // for (int i = 0; i < NUM_ROWS_PER_ROW_GROUP; i++) {
-    //   bool value = ((i % 2) == 0) ? true : false;
-    //   bool_writer->WriteBatch(1, nullptr, nullptr, &value);
-    // }
-
-    writecolswithindex(NUM_ROWS_PER_ROW_GROUP,rg_writer,1,1,1.1f,1.1111111,124);
-    
-
-    // Write the FixedLengthByteArray column
-    /*parquet::FixedLenByteArrayWriter* flba_writer =
-        static_cast<parquet::FixedLenByteArrayWriter*>(rg_writer->NextColumn());
-    for (int i = 0; i < NUM_ROWS_PER_ROW_GROUP; i++) {
-      parquet::FixedLenByteArray value;
-      char v = static_cast<char>(i);
-      char flba[FIXED_LENGTH] = {v, v, v, v, v, v, v, v, v, v};
-      value.ptr = reinterpret_cast<const uint8_t*>(&flba[0]);
-
-      flba_writer->WriteBatch(1, nullptr, nullptr, &value);
-    }*/
-
+    parquet::RowGroupWriter* rg_writer;
+    for ( int i=0; i < num_rg; i++) {
+      rg_writer = file_writer->AppendRowGroup(NUM_ROWS/num_rg);
+      writecolswithindex(NUM_ROWS/num_rg,rg_writer,1,1,1.1f,1.1111111,124);
+    }
     // Close the ParquetFileWriter
     file_writer->CloseWithIndex();
 
@@ -290,9 +270,9 @@ void writeparquetwithindex(int NUM_ROWS_PER_ROW_GROUP) {
   }
 }
 
-void writeparquetwithindexunsorted(int NUM_ROWS_PER_ROW_GROUP) {
+void writeparquetwithindexunsorted(int NUM_ROWS, int num_rg) {
   const char* filename_1 = "parquet_cpp_example_";
-  const char* filename_2 = std::to_string(NUM_ROWS_PER_ROW_GROUP).c_str();
+  const char* filename_2 = std::to_string(NUM_ROWS).c_str();
   const char* filename_3 = "_unsorted.parquet";
   
   char PARQUET_FILENAME[strlen(filename_1) + strlen(filename_2) + strlen(filename_3)];
@@ -324,30 +304,11 @@ void writeparquetwithindexunsorted(int NUM_ROWS_PER_ROW_GROUP) {
         parquet::ParquetFileWriter::Open(out_file, schema, props);
 
     // Append a RowGroup with a specific number of rows.
-    parquet::RowGroupWriter* rg_writer = file_writer->AppendRowGroup();
-
-    // // Write the Bool column
-    // parquet::BoolWriter* bool_writer =
-    //     static_cast<parquet::BoolWriter*>(rg_writer->NextColumn());
-    // for (int i = 0; i < NUM_ROWS_PER_ROW_GROUP; i++) {
-    //   bool value = ((i % 2) == 0) ? true : false;
-    //   bool_writer->WriteBatch(1, nullptr, nullptr, &value);
-    // }
-
-    writecolswithindexunsorted(NUM_ROWS_PER_ROW_GROUP,rg_writer,1,1,1.1f,1.1111111,124);
-    
-
-    // Write the FixedLengthByteArray column
-    /*parquet::FixedLenByteArrayWriter* flba_writer =
-        static_cast<parquet::FixedLenByteArrayWriter*>(rg_writer->NextColumn());
-    for (int i = 0; i < NUM_ROWS_PER_ROW_GROUP; i++) {
-      parquet::FixedLenByteArray value;
-      char v = static_cast<char>(i);
-      char flba[FIXED_LENGTH] = {v, v, v, v, v, v, v, v, v, v};
-      value.ptr = reinterpret_cast<const uint8_t*>(&flba[0]);
-
-      flba_writer->WriteBatch(1, nullptr, nullptr, &value);
-    }*/
+    parquet::RowGroupWriter* rg_writer;
+    for ( int i=0; i < num_rg; i++) {
+      rg_writer = file_writer->AppendRowGroup(NUM_ROWS/num_rg);
+      writecolswithindex(NUM_ROWS/num_rg,rg_writer,1,1,1.1f,1.1111111,124);
+    }
 
     // Close the ParquetFileWriter
     file_writer->CloseWithIndex();
@@ -362,11 +323,11 @@ void writeparquetwithindexunsorted(int NUM_ROWS_PER_ROW_GROUP) {
 
 
 int main(int argc, char** argv) {
-  if (argc == 2){
-    int NUM_ROWS_PER_ROW_GROUP = atoi(argv[1]);
-    
-    writeparquetwithindex(NUM_ROWS_PER_ROW_GROUP);
-    writeparquetwithindexunsorted(NUM_ROWS_PER_ROW_GROUP);
+  if (argc == 3){
+    int NUM_ROWS = atoi(argv[1]);
+    int num_rg = atoi(argv[2]);
+    writeparquetwithindex(NUM_ROWS,num_rg);
+    writeparquetwithindexunsorted(NUM_ROWS,num_rg);
   }
   
   std::cout << "Parquet Writing and Reading Complete" << std::endl;

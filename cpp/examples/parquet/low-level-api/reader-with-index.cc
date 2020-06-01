@@ -76,6 +76,104 @@ constexpr int64_t ROW_GROUP_SIZE = (sizeof(uint32_t)+sizeof(int32_t)+sizeof(int6
 //char PARQUET_FILENAME[] = "";
 //const char PARQUET_FILENAME[] = "/home/abalajiee/parquet_data/testing_write.parquet";
 
+int parseLine(char* line){
+    // This assumes that a digit will be found and the line ends in " Kb".
+    int i = strlen(line);
+    const char* p = line;
+    while (*p <'0' || *p > '9') p++;
+    line[i-3] = '\0';
+    i = atoi(p);
+    return i;
+}
+
+int getMemValue(){ //Note: this value is in KB!
+    FILE* file = fopen("/proc/self/status", "r");
+    int result = -1; 
+    char line[128];
+
+    while (fgets(line, 128, file) != NULL){
+        if (strncmp(line, "VmRSS:", 6) == 0){ 
+            result = parseLine(line);
+            break;
+        }
+    }   
+    fclose(file);
+    return result;
+}
+
+int getReadBytesValue(){ //Note: this value is in KB!
+    FILE* file = fopen("/proc/self/io", "r");
+    int result = 0; 
+    char line[128];
+
+    while (fgets(line, 128, file) != NULL){
+        if (strncmp(line, "read_bytes:", 11) == 0){ 
+            result = parseLine(line);
+            break;
+        }
+    }   
+    fclose(file);
+    return result;
+}
+
+int getReadBytesCacheValue(){ //Note: this value is in KB!
+    FILE* file = fopen("/proc/self/io", "r");
+    int result = 0; 
+    char line[128];
+
+    while (fgets(line, 128, file) != NULL){
+        if (strncmp(line, "rchar:", 6) == 0){ 
+            result = parseLine(line);
+            break;
+        }
+    }   
+    fclose(file);
+    return result;
+}
+
+int getWriteBytesValue(){ //Note: this value is in KB!
+    FILE* file = fopen("/proc/self/io", "r");
+    int result = 0; 
+    char line[128];
+    int trunc = 0;
+    while (fgets(line, 128, file) != NULL){
+        if (strncmp(line, "write_bytes:", 12) == 0){ 
+            result = parseLine(line);
+            break;
+        }
+        if (strncmp(line, "cancelled_write_bytes:", 22) == 0){ 
+            trunc = parseLine(line);
+            break;
+        }
+    }   
+    fclose(file);
+    return result-trunc;
+}
+
+int getWriteBytesCacheValue(){ //Note: this value is in KB!
+    FILE* file = fopen("/proc/self/io", "r");
+    int result = 0; 
+    char line[128];
+    while (fgets(line, 128, file) != NULL){
+        if (strncmp(line, "wchar:", 6) == 0){ 
+            result = parseLine(line);
+            break;
+        }
+    }   
+    fclose(file);
+    return result;
+}
+
+/*
+rchar: 91439151
+wchar: 986032
+syscr: 54376
+syscw: 45314
+read_bytes: 17989632
+write_bytes: 626688
+cancelled_write_bytes: 233472
+*/
+
 struct return_multiple{
    std::shared_ptr<parquet::ColumnReader> column_reader;
    bool b;
@@ -93,18 +191,33 @@ typedef struct time_to_run{
        float wo_index = 0.0;                      //without index
        float wo_total_pages_scanned = 0.0;      
        float wo_totaltime = 0.0;
+       float wo_mem_used = 0.0;
+       float wo_read_bytes = 0.0;
+       float wo_write_bytes = 0.0;
        float w_totaltime = 0.0;                   //with index without binary without blf
        float w_index = 0.0;
        float w_total_pages_scanned = 0.0;
+       float w_mem_used = 0.0;
+       float w_read_bytes = 0.0;
+       float w_write_bytes = 0.0;
        float b_totaltime = 0.0;                  //with binary search  without blf
        float b_index = 0.0;
        float b_total_pages_scanned = 0.0;
+       float b_mem_used = 0.0;
+       float b_read_bytes = 0.0;
+       float b_write_bytes = 0.0;
        float w_blf_totaltime = 0.0;              // with blf without pageblf
        float w_blf_index = 0.0;
        float w_blf_total_pages_scanned = 0.0;
+       float w_blf_mem_used = 0.0;
+       float w_blf_read_bytes = 0.0;
+       float w_blf_write_bytes = 0.0;
        float w_pageblf_totaltime = 0.0;              // with blf with pageblf
        float w_pageblf_index = 0.0;
        float w_pageblf_total_pages_scanned = 0.0;
+       float w_pageblf_mem_used = 0.0;
+       float w_pageblf_read_bytes = 0.0;
+       float w_pageblf_write_bytes = 0.0;
   } trun;
 
 int parquet_writer(int argc, char** argv);
@@ -243,6 +356,24 @@ int parquet_reader(int argc,char** argv) {
               times_by_type[col_id].b_total_pages_scanned += avgtime.b_total_pages_scanned;
               times_by_type[col_id].w_blf_total_pages_scanned += avgtime.w_blf_total_pages_scanned;
               times_by_type[col_id].w_pageblf_total_pages_scanned += avgtime.w_pageblf_total_pages_scanned;
+
+              times_by_type[col_id].wo_mem_used += avgtime.wo_mem_used;
+              times_by_type[col_id].w_mem_used += avgtime.w_mem_used;
+              times_by_type[col_id].b_mem_used += avgtime.b_mem_used;
+              times_by_type[col_id].w_blf_mem_used += avgtime.w_blf_mem_used;
+              times_by_type[col_id].w_pageblf_mem_used += avgtime.w_pageblf_mem_used;
+
+              times_by_type[col_id].wo_read_bytes += avgtime.wo_read_bytes;
+              times_by_type[col_id].w_read_bytes += avgtime.w_read_bytes;
+              times_by_type[col_id].b_read_bytes += avgtime.b_read_bytes;
+              times_by_type[col_id].w_blf_read_bytes += avgtime.w_blf_read_bytes;
+              times_by_type[col_id].w_pageblf_read_bytes += avgtime.w_pageblf_read_bytes;
+
+              times_by_type[col_id].wo_write_bytes += avgtime.wo_write_bytes;
+              times_by_type[col_id].w_write_bytes += avgtime.w_write_bytes;
+              times_by_type[col_id].b_write_bytes += avgtime.b_write_bytes;
+              times_by_type[col_id].w_blf_write_bytes += avgtime.w_blf_write_bytes;
+              times_by_type[col_id].w_pageblf_write_bytes += avgtime.w_pageblf_write_bytes;
               
               predicateindex++;
             }
@@ -253,19 +384,39 @@ int parquet_reader(int argc,char** argv) {
           runfile<< "|----------------------------col_num " << col_id << "----------------------------|" << std::endl;
           
           runfile << std::setprecision(3)  <<"POINT QUERY: minimum average time w/o index " 
-          << (times_by_type[col_id].wo_totaltime/(num_runs*num_queries)) << "avg num of datapage indices scanned " << (times_by_type[col_id].wo_total_pages_scanned/(num_runs*num_queries)) << std::endl;
+          << (times_by_type[col_id].wo_totaltime/(num_runs*num_queries)) << "avg num of datapage indices scanned " << (times_by_type[col_id].wo_total_pages_scanned/(num_runs*num_queries)) 
+          << "avg memory used in kB " << times_by_type[col_id].wo_mem_used
+          << "avg bytes read " << times_by_type[col_id].wo_read_bytes
+          << "avg bytes written " << times_by_type[col_id].wo_write_bytes
+          << std::endl;
           
           runfile << std::setprecision(3)  <<"POINT QUERY: minimum average time w index " 
-          << (times_by_type[col_id].w_totaltime/(num_runs*num_queries)) << "avg num of datapage indices scanned " << (times_by_type[col_id].w_total_pages_scanned/(num_runs*num_queries)) << std::endl;
+          << (times_by_type[col_id].w_totaltime/(num_runs*num_queries)) << "avg num of datapage indices scanned " << (times_by_type[col_id].w_total_pages_scanned/(num_runs*num_queries))
+          << "avg memory used in kB " << times_by_type[col_id].w_mem_used
+          << "avg bytes read " << times_by_type[col_id].w_read_bytes
+          << "avg bytes written " << times_by_type[col_id].w_write_bytes
+          << std::endl;
           
           runfile << std::setprecision(3)  <<"POINT QUERY: minimum average time w index with binary without bloomfilter " 
-          << (times_by_type[col_id].b_totaltime/(num_runs*num_queries)) << "avg num of datapage indices scanned " << (times_by_type[col_id].b_total_pages_scanned/(num_runs*num_queries)) << std::endl;
+          << (times_by_type[col_id].b_totaltime/(num_runs*num_queries)) << "avg num of datapage indices scanned " << (times_by_type[col_id].b_total_pages_scanned/(num_runs*num_queries))
+          << "avg memory used in kB " << times_by_type[col_id].b_mem_used
+          << "avg bytes read " << times_by_type[col_id].b_read_bytes
+          << "avg bytes written " << times_by_type[col_id].b_write_bytes
+          << std::endl;
         
           runfile << std::setprecision(3)  <<"POINT QUERY: minimum average time w index with binary with bloomfilter " 
-          << (times_by_type[col_id].w_blf_totaltime/(num_runs*num_queries)) << "avg num of datapage indices scanned " << (times_by_type[col_id].w_blf_total_pages_scanned/(num_runs*num_queries)) << std::endl;
+          << (times_by_type[col_id].w_blf_totaltime/(num_runs*num_queries)) << "avg num of datapage indices scanned " << (times_by_type[col_id].w_blf_total_pages_scanned/(num_runs*num_queries)) 
+          << "avg memory used in kB " << times_by_type[col_id].w_blf_mem_used
+          << "avg bytes read " << times_by_type[col_id].w_blf_read_bytes
+          << "avg bytes written " << times_by_type[col_id].w_blf_write_bytes
+          << std::endl;
 
           runfile << std::setprecision(3)  <<"POINT QUERY: minimum average time w index with binary with bloomfilter " 
-          << (times_by_type[col_id].w_pageblf_totaltime/(num_runs*num_queries)) << "avg num of datapage indices scanned " << (times_by_type[col_id].w_pageblf_total_pages_scanned/(num_runs*num_queries)) << std::endl;
+          << (times_by_type[col_id].w_pageblf_totaltime/(num_runs*num_queries)) << "avg num of datapage indices scanned " << (times_by_type[col_id].w_pageblf_total_pages_scanned/(num_runs*num_queries)) 
+          << "avg memory used in kB " << times_by_type[col_id].w_pageblf_mem_used
+          << "avg bytes read " << times_by_type[col_id].w_pageblf_read_bytes
+          << "avg bytes written " << times_by_type[col_id].w_pageblf_write_bytes
+          << std::endl;
             
           runfile<< "|----------------------------------------------------------------------------------|" << std::endl;
 
@@ -305,6 +456,16 @@ trun run_for_one_predicate(int num_columns,int num_row_groups, std::unique_ptr<p
 
     
     trun avgtime;
+    int64_t prev_num_bytes_r = 0;
+    int64_t prev_num_bytes_rc = 0;
+    int64_t prev_num_bytes_w = 0;
+    int64_t prev_num_bytes_wc = 0;
+    int64_t curr_num_bytes_r = 0;
+    int64_t curr_num_bytes_rc = 0;
+    int64_t curr_num_bytes_w = 0;
+    int64_t curr_num_bytes_wc = 0;
+    int64_t prev_mem_used = 0;
+    int64_t curr_mem_used = 0;
   // Iterate over all the RowGroups in the file
     for (int r = 0; r < num_row_groups; ++r) {
     
@@ -325,6 +486,9 @@ trun run_for_one_predicate(int num_columns,int num_row_groups, std::unique_ptr<p
 
         /********FIRST PASS WITHOUT INDEX***************/
         total_time = 0.0;
+        prev_mem_used = getMemValue();
+        prev_num_bytes_r = getReadBytesValue();
+        prev_num_bytes_w = getWriteBytesValue();
         std::cout << " ########################################################################## " << std::endl;
         std::cout << "\n time for predicate one pass without index: " << std::endl;
         for(int t  =0 ; t< num_runs; t++){
@@ -335,17 +499,31 @@ trun run_for_one_predicate(int num_columns,int num_row_groups, std::unique_ptr<p
             float time_elapsed = ((float)(end_time.tv_sec-start_time.tv_sec) + abs((float)(end_time.tv_usec - start_time.tv_usec))/1000000.0);
 
             std::cout << std::setprecision(3) << time_elapsed << std::endl;
+            curr_mem_used = getMemValue();
+            curr_num_bytes_r = getReadBytesValue();
+            curr_num_bytes_w = getWriteBytesValue();
+            std::cout << "\n memory used (in kB): " << curr_mem_used-prev_mem_used << std::endl;
+            std::cout << "\n number of bytes read from storage layer (in B): " << curr_num_bytes_r - prev_num_bytes_r << std::endl;
+            std::cout << "\n number of bytes written to storage (in B): " << curr_num_bytes_w - prev_num_bytes_w << std::endl; 
+            std::cout << "\n number of bytes read from cache (in B): " << curr_num_bytes_rc - prev_num_bytes_r << std::endl;
+            std::cout << "\n number of bytes written cancelled by cache (in B): " << curr_num_bytes_wc - prev_num_bytes_wc << std::endl; 
 
             total_time = (t!=0 && time_elapsed > total_time)? total_time:time_elapsed;
         }
         avgtime.wo_total_pages_scanned = total_pages_scanned/num_runs;
         avgtime.wo_totaltime = total_time;
+        avgtime.wo_mem_used = curr_mem_used-prev_mem_used;
+        avgtime.wo_read_bytes = curr_num_bytes_r - prev_num_bytes_r;
+        avgtime.wo_write_bytes = curr_num_bytes_w - prev_num_bytes_w;
         std::cout << " ########################################################################## " << std::endl;
        
         /**************FIRST PASS WITH INDEX WITHOUT BINARY WITHOUT BF PAGE BF*****************/
 
         total_time = 0.0;
         total_pages_scanned = 0.0;
+        prev_mem_used = getMemValue();
+        prev_num_bytes_r = getReadBytesValue();
+        prev_num_bytes_w = getWriteBytesValue();
         std::cout << " ########################################################################## " << std::endl;
         std::cout << "\n time for predicate one pass without binary without bloom filter: " << std::endl;
         for(int t  =0 ; t< num_runs; t++){
@@ -356,18 +534,30 @@ trun run_for_one_predicate(int num_columns,int num_row_groups, std::unique_ptr<p
             float time_elapsed = ((float)(end_time.tv_sec-start_time.tv_sec) + abs((float)(end_time.tv_usec - start_time.tv_usec))/1000000.0);
 
             std::cout << std::setprecision(3) << time_elapsed << std::endl;
-
+            curr_mem_used = getMemValue();
+            curr_num_bytes_r = getReadBytesValue();
+            curr_num_bytes_w = getWriteBytesValue();
+            std::cout << "\n memory used (in kB): " << curr_mem_used-prev_mem_used << std::endl;
+            std::cout << "\n number of bytes read from storage layer (in B): " << curr_num_bytes_r - prev_num_bytes_r << std::endl;
+            std::cout << "\n number of bytes written to storage (in B): " << curr_num_bytes_w - prev_num_bytes_w << std::endl; 
+            std::cout << "\n number of bytes read from cache (in B): " << curr_num_bytes_rc - prev_num_bytes_r << std::endl;
+            std::cout << "\n number of bytes written cancelled by cache (in B): " << curr_num_bytes_wc - prev_num_bytes_wc << std::endl; 
             total_time = (t!=0 && time_elapsed > total_time)? total_time:time_elapsed;
         }
         
         avgtime.w_total_pages_scanned = total_pages_scanned/num_runs;
         avgtime.w_totaltime = total_time;
-
+        avgtime.w_mem_used = curr_mem_used-prev_mem_used;
+        avgtime.w_read_bytes = curr_num_bytes_r - prev_num_bytes_r;
+        avgtime.w_write_bytes = curr_num_bytes_w - prev_num_bytes_w;
         std::cout << " ########################################################################## " << std::endl;
         /**************FIRST PASS WITH INDEX WITH BINARY WITHOUT BF PAGE BF*****************/
 
         total_time = 0.0;
         total_pages_scanned = 0.0;
+        prev_mem_used = getMemValue();
+        prev_num_bytes_r = getReadBytesValue();
+        prev_num_bytes_w = getWriteBytesValue();
         std::cout << " ########################################################################## " << std::endl;
         std::cout << "\n time for predicate one pass with binary without bloom filter: "  << std::endl;
         for(int t  =0 ; t< num_runs; t++){
@@ -378,17 +568,30 @@ trun run_for_one_predicate(int num_columns,int num_row_groups, std::unique_ptr<p
             float time_elapsed = ((float)(end_time.tv_sec-start_time.tv_sec) + abs((float)(end_time.tv_usec - start_time.tv_usec))/1000000.0);
 
             std::cout << std::setprecision(3) << time_elapsed << std::endl;
-
+            curr_mem_used = getMemValue();
+            curr_num_bytes_r = getReadBytesValue();
+            curr_num_bytes_w = getWriteBytesValue();
+            std::cout << "\n memory used (in kB): " << curr_mem_used-prev_mem_used << std::endl;
+            std::cout << "\n number of bytes read from storage layer (in B): " << curr_num_bytes_r - prev_num_bytes_r << std::endl;
+            std::cout << "\n number of bytes written to storage (in B): " << curr_num_bytes_w - prev_num_bytes_w << std::endl; 
+            std::cout << "\n number of bytes read from cache (in B): " << curr_num_bytes_rc - prev_num_bytes_r << std::endl;
+            std::cout << "\n number of bytes written cancelled by cache (in B): " << curr_num_bytes_wc - prev_num_bytes_wc << std::endl; 
             total_time = (t!=0 && time_elapsed > total_time)? total_time:time_elapsed;
         }
         
         avgtime.b_total_pages_scanned = total_pages_scanned/num_runs;
         avgtime.b_totaltime = total_time;
+        avgtime.b_mem_used = curr_mem_used-prev_mem_used;
+        avgtime.b_read_bytes = curr_num_bytes_r - prev_num_bytes_r;
+        avgtime.b_write_bytes = curr_num_bytes_w - prev_num_bytes_w;
         std::cout << " ########################################################################## " << std::endl;
         /**************FIRST PASS WITH INDEX WITH BINARY WITH BF WITHOUT PAGE BF*****************/
 
         total_time = 0.0;
         total_pages_scanned = 0.0;
+        prev_mem_used = getMemValue();
+        prev_num_bytes_r = getReadBytesValue();
+        prev_num_bytes_w = getWriteBytesValue();
         std::cout << " ########################################################################## " << std::endl;
         std::cout << "\n time for predicate one pass with binary with bloom filter: " << std::endl;
         for(int t  =0 ; t< num_runs; t++){
@@ -399,17 +602,30 @@ trun run_for_one_predicate(int num_columns,int num_row_groups, std::unique_ptr<p
             float time_elapsed = ((float)(end_time.tv_sec-start_time.tv_sec) + abs((float)(end_time.tv_usec - start_time.tv_usec))/1000000.0);
 
             std::cout << std::setprecision(3) << time_elapsed << std::endl;
+            curr_mem_used = getMemValue();
+            curr_num_bytes_r = getReadBytesValue();
+            curr_num_bytes_w = getWriteBytesValue();
+            std::cout << "\n memory used (in kB): " << curr_mem_used-prev_mem_used << std::endl;
+            std::cout << "\n number of bytes read from storage layer (in B): " << curr_num_bytes_r - prev_num_bytes_r << std::endl;
+            std::cout << "\n number of bytes written to storage (in B): " << curr_num_bytes_w - prev_num_bytes_w << std::endl; 
+            std::cout << "\n number of bytes read from cache (in B): " << curr_num_bytes_rc - prev_num_bytes_r << std::endl;
+            std::cout << "\n number of bytes written cancelled by cache (in B): " << curr_num_bytes_wc - prev_num_bytes_wc << std::endl; 
 
             total_time = (t!=0 && time_elapsed > total_time)? total_time:time_elapsed;
         }
         
         avgtime.w_blf_total_pages_scanned = total_pages_scanned/num_runs;
         avgtime.w_blf_totaltime = total_time;
-
+        avgtime.w_blf_mem_used = curr_mem_used-prev_mem_used;
+        avgtime.w_blf_read_bytes = curr_num_bytes_r - prev_num_bytes_r;
+        avgtime.w_blf_write_bytes = curr_num_bytes_w - prev_num_bytes_w;
         std::cout << " ########################################################################## " << std::endl;
       /**************FIRST PASS WITH INDEX WITH BINARY WITH BF WITH PAGE BF*****************/
         total_time = 0.0;
         total_pages_scanned = 0.0;
+        prev_mem_used = getMemValue();
+        prev_num_bytes_r = getReadBytesValue();
+        prev_num_bytes_w = getWriteBytesValue();
         std::cout << " ########################################################################## " << std::endl;
         std::cout << "\n time for predicate one pass all enabled: " << std::endl;
         for(int t  =0 ; t< num_runs; t++){
@@ -420,12 +636,23 @@ trun run_for_one_predicate(int num_columns,int num_row_groups, std::unique_ptr<p
             float time_elapsed = ((float)(end_time.tv_sec-start_time.tv_sec) + abs((float)(end_time.tv_usec - start_time.tv_usec))/1000000.0);
 
             std::cout << std::setprecision(3) << time_elapsed << std::endl;
+            curr_mem_used = getMemValue();
+            curr_num_bytes_r = getReadBytesValue();
+            curr_num_bytes_w = getWriteBytesValue();
+            std::cout << "\n memory used (in kB): " << curr_mem_used-prev_mem_used << std::endl;
+            std::cout << "\n number of bytes read from storage layer (in B): " << curr_num_bytes_r - prev_num_bytes_r << std::endl;
+            std::cout << "\n number of bytes written to storage (in B): " << curr_num_bytes_w - prev_num_bytes_w << std::endl; 
+            std::cout << "\n number of bytes read from cache (in B): " << curr_num_bytes_rc - prev_num_bytes_r << std::endl;
+            std::cout << "\n number of bytes written cancelled by cache (in B): " << curr_num_bytes_wc - prev_num_bytes_wc << std::endl; 
 
             total_time = (t!=0 && time_elapsed > total_time)? total_time:time_elapsed;
         }
         
         avgtime.w_pageblf_total_pages_scanned = total_pages_scanned/num_runs;
         avgtime.w_pageblf_totaltime = total_time;
+        avgtime.w_pageblf_mem_used = curr_mem_used-prev_mem_used;
+        avgtime.w_pageblf_read_bytes = curr_num_bytes_r - prev_num_bytes_r;
+        avgtime.w_pageblf_write_bytes = curr_num_bytes_w - prev_num_bytes_w;
         std::cout << " ########################################################################## " << std::endl;
 
       /***********FIRST PASS END **********/
