@@ -24,7 +24,7 @@
 #include <sys/time.h>
 #include <arrow/io/file.h>
 #include <arrow/util/logging.h>
-
+#include <time.h>
 #include "parquet/api/reader.h"
 #include "parquet/column_reader.h"
 #include "parquet/column_scanner.h"
@@ -476,7 +476,7 @@ trun run_for_one_predicate(int num_columns,int num_row_groups, std::unique_ptr<p
         // Get the RowGroup Reader
        std::shared_ptr<parquet::RowGroupReader> row_group_reader = parquet_reader->RowGroup(r);
 
-        struct timeval start_time,end_time;
+        clock_t start_time,end_time;
         float total_time= 0.0;
         int num_runs = 1;
          
@@ -492,11 +492,11 @@ trun run_for_one_predicate(int num_columns,int num_row_groups, std::unique_ptr<p
         std::cout << " ########################################################################## " << std::endl;
         std::cout << "\n time for predicate one pass without index: " << std::endl;
         for(int t  =0 ; t< num_runs; t++){
-            gettimeofday(&start_time,NULL);
+            start_time = clock();
           total_pages_scanned += first_pass_for_predicate_only(row_group_reader,col_id,num_columns,predicate_val,false,equal_to,!binary_search,!with_bloom_filter, !with_page_bf);
-          gettimeofday(&end_time,NULL);
+          end_time = clock();
           
-            float time_elapsed = ((float)(end_time.tv_sec-start_time.tv_sec) + abs((float)(end_time.tv_usec - start_time.tv_usec))/1000000.0);
+            float time_elapsed = ((float) (end_time-start_time))/CLOCKS_PER_SEC;
 
             std::cout << std::setprecision(3) << time_elapsed << std::endl;
             curr_mem_used = getMemValue();
@@ -515,7 +515,7 @@ trun run_for_one_predicate(int num_columns,int num_row_groups, std::unique_ptr<p
         avgtime.wo_mem_used = curr_mem_used-prev_mem_used;
         avgtime.wo_read_bytes = curr_num_bytes_r - prev_num_bytes_r;
         avgtime.wo_write_bytes = curr_num_bytes_w - prev_num_bytes_w;
-        std::cout << " ########################################################################## " << std::endl;
+        std::cout << " ------------------------------------------------------------------------ " << std::endl;
        
         /**************FIRST PASS WITH INDEX WITHOUT BINARY WITHOUT BF PAGE BF*****************/
 
@@ -524,14 +524,14 @@ trun run_for_one_predicate(int num_columns,int num_row_groups, std::unique_ptr<p
         prev_mem_used = getMemValue();
         prev_num_bytes_r = getReadBytesValue();
         prev_num_bytes_w = getWriteBytesValue();
-        std::cout << " ########################################################################## " << std::endl;
+        std::cout << " ------------------------------------------------------------------------ " << std::endl;
         std::cout << "\n time for predicate one pass without binary without bloom filter: " << std::endl;
         for(int t  =0 ; t< num_runs; t++){
-            gettimeofday(&start_time,NULL);
+            start_time = clock();
           first_pass_for_predicate_only(row_group_reader,col_id,num_columns,predicate_val,true,equal_to, !binary_search, !with_bloom_filter,!with_page_bf);
-          gettimeofday(&end_time,NULL);
+          end_time = clock();
           
-            float time_elapsed = ((float)(end_time.tv_sec-start_time.tv_sec) + abs((float)(end_time.tv_usec - start_time.tv_usec))/1000000.0);
+            float time_elapsed = ((float) (end_time-start_time))/CLOCKS_PER_SEC;
 
             std::cout << std::setprecision(3) << time_elapsed << std::endl;
             curr_mem_used = getMemValue();
@@ -550,7 +550,7 @@ trun run_for_one_predicate(int num_columns,int num_row_groups, std::unique_ptr<p
         avgtime.w_mem_used = curr_mem_used-prev_mem_used;
         avgtime.w_read_bytes = curr_num_bytes_r - prev_num_bytes_r;
         avgtime.w_write_bytes = curr_num_bytes_w - prev_num_bytes_w;
-        std::cout << " ########################################################################## " << std::endl;
+        std::cout << " ------------------------------------------------------------------------ " << std::endl;
         /**************FIRST PASS WITH INDEX WITH BINARY WITHOUT BF PAGE BF*****************/
 
         total_time = 0.0;
@@ -558,14 +558,14 @@ trun run_for_one_predicate(int num_columns,int num_row_groups, std::unique_ptr<p
         prev_mem_used = getMemValue();
         prev_num_bytes_r = getReadBytesValue();
         prev_num_bytes_w = getWriteBytesValue();
-        std::cout << " ########################################################################## " << std::endl;
+        std::cout << " ------------------------------------------------------------------------ " << std::endl;
         std::cout << "\n time for predicate one pass with binary without bloom filter: "  << std::endl;
         for(int t  =0 ; t< num_runs; t++){
-            gettimeofday(&start_time,NULL);
+            start_time = clock();
           first_pass_for_predicate_only(row_group_reader,col_id,num_columns,predicate_val,true,equal_to, binary_search, !with_bloom_filter,!with_page_bf);
-          gettimeofday(&end_time,NULL);
+          end_time = clock();
           
-            float time_elapsed = ((float)(end_time.tv_sec-start_time.tv_sec) + abs((float)(end_time.tv_usec - start_time.tv_usec))/1000000.0);
+            float time_elapsed = ((float) (end_time-start_time))/CLOCKS_PER_SEC;
 
             std::cout << std::setprecision(3) << time_elapsed << std::endl;
             curr_mem_used = getMemValue();
@@ -584,7 +584,7 @@ trun run_for_one_predicate(int num_columns,int num_row_groups, std::unique_ptr<p
         avgtime.b_mem_used = curr_mem_used-prev_mem_used;
         avgtime.b_read_bytes = curr_num_bytes_r - prev_num_bytes_r;
         avgtime.b_write_bytes = curr_num_bytes_w - prev_num_bytes_w;
-        std::cout << " ########################################################################## " << std::endl;
+        std::cout << " ------------------------------------------------------------------------ " << std::endl;
         /**************FIRST PASS WITH INDEX WITH BINARY WITH BF WITHOUT PAGE BF*****************/
 
         total_time = 0.0;
@@ -592,14 +592,14 @@ trun run_for_one_predicate(int num_columns,int num_row_groups, std::unique_ptr<p
         prev_mem_used = getMemValue();
         prev_num_bytes_r = getReadBytesValue();
         prev_num_bytes_w = getWriteBytesValue();
-        std::cout << " ########################################################################## " << std::endl;
+        std::cout << " ------------------------------------------------------------------------ " << std::endl;
         std::cout << "\n time for predicate one pass with binary with bloom filter: " << std::endl;
         for(int t  =0 ; t< num_runs; t++){
-            gettimeofday(&start_time,NULL);
+            start_time = clock();
           first_pass_for_predicate_only(row_group_reader,col_id,num_columns,predicate_val,true,equal_to, binary_search, with_bloom_filter,!with_page_bf);
-          gettimeofday(&end_time,NULL);
+          end_time = clock();
           
-            float time_elapsed = ((float)(end_time.tv_sec-start_time.tv_sec) + abs((float)(end_time.tv_usec - start_time.tv_usec))/1000000.0);
+            float time_elapsed = ((float) (end_time-start_time))/CLOCKS_PER_SEC;
 
             std::cout << std::setprecision(3) << time_elapsed << std::endl;
             curr_mem_used = getMemValue();
@@ -619,21 +619,21 @@ trun run_for_one_predicate(int num_columns,int num_row_groups, std::unique_ptr<p
         avgtime.w_blf_mem_used = curr_mem_used-prev_mem_used;
         avgtime.w_blf_read_bytes = curr_num_bytes_r - prev_num_bytes_r;
         avgtime.w_blf_write_bytes = curr_num_bytes_w - prev_num_bytes_w;
-        std::cout << " ########################################################################## " << std::endl;
+        std::cout << " ------------------------------------------------------------------------ " << std::endl;
       /**************FIRST PASS WITH INDEX WITH BINARY WITH BF WITH PAGE BF*****************/
         total_time = 0.0;
         total_pages_scanned = 0.0;
         prev_mem_used = getMemValue();
         prev_num_bytes_r = getReadBytesValue();
         prev_num_bytes_w = getWriteBytesValue();
-        std::cout << " ########################################################################## " << std::endl;
+        std::cout << " ------------------------------------------------------------------------ " << std::endl;
         std::cout << "\n time for predicate one pass all enabled: " << std::endl;
         for(int t  =0 ; t< num_runs; t++){
-            gettimeofday(&start_time,NULL);
+            start_time = clock();
           first_pass_for_predicate_only(row_group_reader,col_id,num_columns,predicate_val,true,equal_to,binary_search, with_bloom_filter,with_page_bf);
-          gettimeofday(&end_time,NULL);
+          end_time = clock();
           
-            float time_elapsed = ((float)(end_time.tv_sec-start_time.tv_sec) + abs((float)(end_time.tv_usec - start_time.tv_usec))/1000000.0);
+            float time_elapsed = ((float) (end_time-start_time))/CLOCKS_PER_SEC;
 
             std::cout << std::setprecision(3) << time_elapsed << std::endl;
             curr_mem_used = getMemValue();
