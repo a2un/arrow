@@ -230,14 +230,14 @@ return_multiple getPredicate(std::shared_ptr<parquet::ColumnReader> cr,std::shar
                              int64_t& last_first_row, bool with_bloom_filter, bool with_page_bf,
                              std::vector<int64_t>& unsorted_min_index, std::vector<int64_t>& unsorted_row_index);
 
-bool printVal(std::shared_ptr<parquet::ColumnReader>column_reader, parquet::ColumnReader* int64_reader,int ind,return_multiple vals,int64_t& row_counter,
+bool printVal(std::ofstream& runfile, std::shared_ptr<parquet::ColumnReader>column_reader, parquet::ColumnReader* int64_reader,int ind,return_multiple vals,int64_t& row_counter,
                bool checkpredicate,int equal_to);
 bool printRange(std::shared_ptr<parquet::ColumnReader>column_reader, parquet::ColumnReader* int64_reader,int ind,return_multiple vals_min,return_multiple vals_max,int64_t& row_counter);
 
-trun run_for_one_predicate(int num_columns,int num_row_groups, std::unique_ptr<parquet::ParquetFileReader>& parquet_reader, int col_id,char** argv,
+trun run_for_one_predicate(std::ofstream& runfile, int num_columns,int num_row_groups, std::unique_ptr<parquet::ParquetFileReader>& parquet_reader, int col_id,char** argv,
                            int predicate_index, int equal_to, bool binary_search, bool with_bloom_filter, bool with_page_bf);
 
-int64_t first_pass_for_predicate_only(std::shared_ptr<parquet::RowGroupReader> rg,int predicate_column_number,int num_columns, char* predicate,
+int64_t first_pass_for_predicate_only(std::ofstream& runfile,std::shared_ptr<parquet::RowGroupReader> rg,int predicate_column_number,int num_columns, char* predicate,
                                       bool with_index, int equal_to, bool binary_search, bool with_bloom_filter, bool with_page_bf);
 
 int parquet_reader(int argc, char** argv);
@@ -293,13 +293,14 @@ int parquet_reader(int argc,char** argv) {
      // Get the number of Columns
      int num_columns = file_metadata->num_columns();
      //      assert(num_columns == NUM_COLS);
-
+     std::ofstream runfile;
+     runfile.open(PARQUET_FILENAME+"-run-results.txt");//+"-"+std::to_string(col_id);
      if ( argc == 3 ){
         // Point Queries & range queries
         
         int64_t num_rows = 0;
         int num_queries = 1000;
-        int num_runs = 5;
+        int num_runs = 1;
 
       //   char *col_num = argv[3];
       //  std::stringstream ss(col_num);
@@ -309,8 +310,7 @@ int parquet_reader(int argc,char** argv) {
         getnumrows(argv[2],num_rows);
         
         trun times_by_type[num_columns];
-        std::ofstream runfile;
-        runfile.open(PARQUET_FILENAME+"-run-results.txt");//+"-"+std::to_string(col_id);
+        
         runfile << time(NULL) << std::endl;
         runfile << "############################## --  RUNNING POINT QUERIES -- ########################################" << std::endl;
         for ( int col_id = 0; col_id < num_columns; col_id++){
@@ -343,7 +343,7 @@ int parquet_reader(int argc,char** argv) {
               predicates[predicateindex] = predicate_val;
             
               runfile  << " run number " << i << "-- Query number " << predicateindex << "-- col_num " << col_id  << " predicate: " << predicates[predicateindex] << std::endl;
-              trun avgtime = run_for_one_predicate(num_columns,num_row_groups,parquet_reader,col_id,predicates,predicateindex,0,true,true,true);
+              trun avgtime = run_for_one_predicate(runfile, num_columns,num_row_groups,parquet_reader,col_id,predicates,predicateindex,0,true,true,true);
               
               times_by_type[col_id].wo_totaltime += avgtime.wo_totaltime;
               times_by_type[col_id].w_totaltime += avgtime.w_totaltime;
@@ -421,8 +421,50 @@ int parquet_reader(int argc,char** argv) {
           runfile<< "|----------------------------------------------------------------------------------|" << std::endl;
 
         }
+         
+        runfile << "############################### -- POINT QUERY RUN TIME RESULTS FINAL  ################################" << std::endl;
+        for ( int col_id =0; col_id < num_columns; col_id++){
+          runfile<< "|----------------------------col_num " << col_id << "----------------------------|" << std::endl;
+          
+          runfile << std::setprecision(3)  <<"POINT QUERY: minimum average time w/o index " 
+          << (times_by_type[col_id].wo_totaltime/(num_runs*num_queries)) << "avg num of datapage indices scanned " << (times_by_type[col_id].wo_total_pages_scanned/(num_runs*num_queries)) 
+          << "avg memory used in kB " << times_by_type[col_id].wo_mem_used
+          << "avg bytes read " << times_by_type[col_id].wo_read_bytes
+          << "avg bytes written " << times_by_type[col_id].wo_write_bytes
+          << std::endl;
+          
+          runfile << std::setprecision(3)  <<"POINT QUERY: minimum average time w index " 
+          << (times_by_type[col_id].w_totaltime/(num_runs*num_queries)) << "avg num of datapage indices scanned " << (times_by_type[col_id].w_total_pages_scanned/(num_runs*num_queries))
+          << "avg memory used in kB " << times_by_type[col_id].w_mem_used
+          << "avg bytes read " << times_by_type[col_id].w_read_bytes
+          << "avg bytes written " << times_by_type[col_id].w_write_bytes
+          << std::endl;
+          
+          runfile << std::setprecision(3)  <<"POINT QUERY: minimum average time w index with binary without bloomfilter " 
+          << (times_by_type[col_id].b_totaltime/(num_runs*num_queries)) << "avg num of datapage indices scanned " << (times_by_type[col_id].b_total_pages_scanned/(num_runs*num_queries))
+          << "avg memory used in kB " << times_by_type[col_id].b_mem_used
+          << "avg bytes read " << times_by_type[col_id].b_read_bytes
+          << "avg bytes written " << times_by_type[col_id].b_write_bytes
+          << std::endl;
+        
+          runfile << std::setprecision(3)  <<"POINT QUERY: minimum average time w index with binary with bloomfilter " 
+          << (times_by_type[col_id].w_blf_totaltime/(num_runs*num_queries)) << "avg num of datapage indices scanned " << (times_by_type[col_id].w_blf_total_pages_scanned/(num_runs*num_queries)) 
+          << "avg memory used in kB " << times_by_type[col_id].w_blf_mem_used
+          << "avg bytes read " << times_by_type[col_id].w_blf_read_bytes
+          << "avg bytes written " << times_by_type[col_id].w_blf_write_bytes
+          << std::endl;
+
+          runfile << std::setprecision(3)  <<"POINT QUERY: minimum average time w index with binary with bloomfilter " 
+          << (times_by_type[col_id].w_pageblf_totaltime/(num_runs*num_queries)) << "avg num of datapage indices scanned " << (times_by_type[col_id].w_pageblf_total_pages_scanned/(num_runs*num_queries)) 
+          << "avg memory used in kB " << times_by_type[col_id].w_pageblf_mem_used
+          << "avg bytes read " << times_by_type[col_id].w_pageblf_read_bytes
+          << "avg bytes written " << times_by_type[col_id].w_pageblf_write_bytes
+          << std::endl;
+            
+          runfile<< "|----------------------------------------------------------------------------------|" << std::endl;
+
+        }
         runfile << "#######################################################################################################" << std::endl;
-        runfile.close();
       }
 
      if ( argc == 4 ) {
@@ -430,7 +472,7 @@ int parquet_reader(int argc,char** argv) {
        std::stringstream ss(col_num);
        int colid;
        ss >> colid;
-        run_for_one_predicate(num_columns,num_row_groups,parquet_reader,colid,argv,3,0,true,true,true);
+        run_for_one_predicate(runfile,num_columns,num_row_groups,parquet_reader,colid,argv,3,0,true,true,true);
      }
      
 
@@ -439,10 +481,10 @@ int parquet_reader(int argc,char** argv) {
        std::stringstream ss(col_num);
        int colid;
        ss >> colid;
-       run_for_one_predicate(num_columns,num_row_groups,parquet_reader,colid,argv,3,1,true,true,true);
-       run_for_one_predicate(num_columns,num_row_groups,parquet_reader,colid,argv,4,-1,true,true,true);
+       run_for_one_predicate(runfile,num_columns,num_row_groups,parquet_reader,colid,argv,3,1,true,true,true);
+       run_for_one_predicate(runfile,num_columns,num_row_groups,parquet_reader,colid,argv,4,-1,true,true,true);
      }
-
+     runfile.close();
      return 0;
    } catch (const std::exception& e) {
       std::cerr << "Parquet read error: " << e.what() << std::endl;
@@ -451,7 +493,7 @@ int parquet_reader(int argc,char** argv) {
 
 }
 
-trun run_for_one_predicate(int num_columns,int num_row_groups, std::unique_ptr<parquet::ParquetFileReader>& parquet_reader, int colid,char** argv,int predicate_index, 
+trun run_for_one_predicate(std::ofstream& runfile,int num_columns,int num_row_groups, std::unique_ptr<parquet::ParquetFileReader>& parquet_reader, int colid,char** argv,int predicate_index, 
                            int equal_to, bool binary_search, bool with_bloom_filter, bool with_page_bf) {
 
     
@@ -482,31 +524,31 @@ trun run_for_one_predicate(int num_columns,int num_row_groups, std::unique_ptr<p
          
         float total_pages_scanned = 0.0;
 
-        std::cout << " Column ID: " << col_id << "| Column Type: " << row_group_reader->Column(col_id)->type() << std::endl;
+        runfile << " Column ID: " << col_id << "| Column Type: " << row_group_reader->Column(col_id)->type() << std::endl;
 
         /********FIRST PASS WITHOUT INDEX***************/
         total_time = 0.0;
         prev_mem_used = getMemValue();
         prev_num_bytes_r = getReadBytesValue();
         prev_num_bytes_w = getWriteBytesValue();
-        std::cout << " ########################################################################## " << std::endl;
-        std::cout << "\n time for predicate one pass without index: " << std::endl;
+        runfile << " ########################################################################## " << std::endl;
+        runfile << "\n time for predicate one pass without index: " << std::endl;
         for(int t  =0 ; t< num_runs; t++){
             start_time = clock();
-          total_pages_scanned += first_pass_for_predicate_only(row_group_reader,col_id,num_columns,predicate_val,false,equal_to,!binary_search,!with_bloom_filter, !with_page_bf);
+          total_pages_scanned += first_pass_for_predicate_only(runfile, row_group_reader,col_id,num_columns,predicate_val,false,equal_to,!binary_search,!with_bloom_filter, !with_page_bf);
           end_time = clock();
           
             float time_elapsed = ((float) (end_time-start_time))/CLOCKS_PER_SEC;
 
-            std::cout << std::setprecision(3) << time_elapsed << std::endl;
+            runfile << std::setprecision(3) << time_elapsed << std::endl;
             curr_mem_used = getMemValue();
             curr_num_bytes_r = getReadBytesValue();
             curr_num_bytes_w = getWriteBytesValue();
-            std::cout << "\n memory used (in kB): " << curr_mem_used-prev_mem_used << std::endl;
-            std::cout << "\n number of bytes read from storage layer (in B): " << curr_num_bytes_r - prev_num_bytes_r << std::endl;
-            std::cout << "\n number of bytes written to storage (in B): " << curr_num_bytes_w - prev_num_bytes_w << std::endl; 
-            std::cout << "\n number of bytes read from cache (in B): " << curr_num_bytes_rc - prev_num_bytes_r << std::endl;
-            std::cout << "\n number of bytes written cancelled by cache (in B): " << curr_num_bytes_wc - prev_num_bytes_wc << std::endl; 
+            runfile << "\n memory used (in kB): " << curr_mem_used-prev_mem_used << std::endl;
+            runfile << "\n number of bytes read from storage layer (in B): " << curr_num_bytes_r - prev_num_bytes_r << std::endl;
+            runfile << "\n number of bytes written to storage (in B): " << curr_num_bytes_w - prev_num_bytes_w << std::endl; 
+            runfile << "\n number of bytes read from cache (in B): " << curr_num_bytes_rc - prev_num_bytes_r << std::endl;
+            runfile << "\n number of bytes written cancelled by cache (in B): " << curr_num_bytes_wc - prev_num_bytes_wc << std::endl; 
 
             total_time = (t!=0 && time_elapsed > total_time)? total_time:time_elapsed;
         }
@@ -515,7 +557,7 @@ trun run_for_one_predicate(int num_columns,int num_row_groups, std::unique_ptr<p
         avgtime.wo_mem_used = curr_mem_used-prev_mem_used;
         avgtime.wo_read_bytes = curr_num_bytes_r - prev_num_bytes_r;
         avgtime.wo_write_bytes = curr_num_bytes_w - prev_num_bytes_w;
-        std::cout << " ------------------------------------------------------------------------ " << std::endl;
+        runfile << " ------------------------------------------------------------------------ " << std::endl;
        
         /**************FIRST PASS WITH INDEX WITHOUT BINARY WITHOUT BF PAGE BF*****************/
 
@@ -524,24 +566,24 @@ trun run_for_one_predicate(int num_columns,int num_row_groups, std::unique_ptr<p
         prev_mem_used = getMemValue();
         prev_num_bytes_r = getReadBytesValue();
         prev_num_bytes_w = getWriteBytesValue();
-        std::cout << " ------------------------------------------------------------------------ " << std::endl;
-        std::cout << "\n time for predicate one pass without binary without bloom filter: " << std::endl;
+        runfile << " ------------------------------------------------------------------------ " << std::endl;
+        runfile << "\n time for predicate one pass without binary without bloom filter: " << std::endl;
         for(int t  =0 ; t< num_runs; t++){
             start_time = clock();
-          first_pass_for_predicate_only(row_group_reader,col_id,num_columns,predicate_val,true,equal_to, !binary_search, !with_bloom_filter,!with_page_bf);
+          first_pass_for_predicate_only(runfile, row_group_reader,col_id,num_columns,predicate_val,true,equal_to, !binary_search, !with_bloom_filter,!with_page_bf);
           end_time = clock();
           
             float time_elapsed = ((float) (end_time-start_time))/CLOCKS_PER_SEC;
 
-            std::cout << std::setprecision(3) << time_elapsed << std::endl;
+            runfile << std::setprecision(3) << time_elapsed << std::endl;
             curr_mem_used = getMemValue();
             curr_num_bytes_r = getReadBytesValue();
             curr_num_bytes_w = getWriteBytesValue();
-            std::cout << "\n memory used (in kB): " << curr_mem_used-prev_mem_used << std::endl;
-            std::cout << "\n number of bytes read from storage layer (in B): " << curr_num_bytes_r - prev_num_bytes_r << std::endl;
-            std::cout << "\n number of bytes written to storage (in B): " << curr_num_bytes_w - prev_num_bytes_w << std::endl; 
-            std::cout << "\n number of bytes read from cache (in B): " << curr_num_bytes_rc - prev_num_bytes_r << std::endl;
-            std::cout << "\n number of bytes written cancelled by cache (in B): " << curr_num_bytes_wc - prev_num_bytes_wc << std::endl; 
+            runfile << "\n memory used (in kB): " << curr_mem_used-prev_mem_used << std::endl;
+            runfile << "\n number of bytes read from storage layer (in B): " << curr_num_bytes_r - prev_num_bytes_r << std::endl;
+            runfile << "\n number of bytes written to storage (in B): " << curr_num_bytes_w - prev_num_bytes_w << std::endl; 
+            runfile << "\n number of bytes read from cache (in B): " << curr_num_bytes_rc - prev_num_bytes_r << std::endl;
+            runfile << "\n number of bytes written cancelled by cache (in B): " << curr_num_bytes_wc - prev_num_bytes_wc << std::endl; 
             total_time = (t!=0 && time_elapsed > total_time)? total_time:time_elapsed;
         }
         
@@ -550,7 +592,7 @@ trun run_for_one_predicate(int num_columns,int num_row_groups, std::unique_ptr<p
         avgtime.w_mem_used = curr_mem_used-prev_mem_used;
         avgtime.w_read_bytes = curr_num_bytes_r - prev_num_bytes_r;
         avgtime.w_write_bytes = curr_num_bytes_w - prev_num_bytes_w;
-        std::cout << " ------------------------------------------------------------------------ " << std::endl;
+        runfile << " ------------------------------------------------------------------------ " << std::endl;
         /**************FIRST PASS WITH INDEX WITH BINARY WITHOUT BF PAGE BF*****************/
 
         total_time = 0.0;
@@ -558,24 +600,24 @@ trun run_for_one_predicate(int num_columns,int num_row_groups, std::unique_ptr<p
         prev_mem_used = getMemValue();
         prev_num_bytes_r = getReadBytesValue();
         prev_num_bytes_w = getWriteBytesValue();
-        std::cout << " ------------------------------------------------------------------------ " << std::endl;
-        std::cout << "\n time for predicate one pass with binary without bloom filter: "  << std::endl;
+        runfile << " ------------------------------------------------------------------------ " << std::endl;
+        runfile << "\n time for predicate one pass with binary without bloom filter: "  << std::endl;
         for(int t  =0 ; t< num_runs; t++){
             start_time = clock();
-          first_pass_for_predicate_only(row_group_reader,col_id,num_columns,predicate_val,true,equal_to, binary_search, !with_bloom_filter,!with_page_bf);
+          first_pass_for_predicate_only(runfile, row_group_reader,col_id,num_columns,predicate_val,true,equal_to, binary_search, !with_bloom_filter,!with_page_bf);
           end_time = clock();
           
             float time_elapsed = ((float) (end_time-start_time))/CLOCKS_PER_SEC;
 
-            std::cout << std::setprecision(3) << time_elapsed << std::endl;
+            runfile << std::setprecision(3) << time_elapsed << std::endl;
             curr_mem_used = getMemValue();
             curr_num_bytes_r = getReadBytesValue();
             curr_num_bytes_w = getWriteBytesValue();
-            std::cout << "\n memory used (in kB): " << curr_mem_used-prev_mem_used << std::endl;
-            std::cout << "\n number of bytes read from storage layer (in B): " << curr_num_bytes_r - prev_num_bytes_r << std::endl;
-            std::cout << "\n number of bytes written to storage (in B): " << curr_num_bytes_w - prev_num_bytes_w << std::endl; 
-            std::cout << "\n number of bytes read from cache (in B): " << curr_num_bytes_rc - prev_num_bytes_r << std::endl;
-            std::cout << "\n number of bytes written cancelled by cache (in B): " << curr_num_bytes_wc - prev_num_bytes_wc << std::endl; 
+            runfile << "\n memory used (in kB): " << curr_mem_used-prev_mem_used << std::endl;
+            runfile << "\n number of bytes read from storage layer (in B): " << curr_num_bytes_r - prev_num_bytes_r << std::endl;
+            runfile << "\n number of bytes written to storage (in B): " << curr_num_bytes_w - prev_num_bytes_w << std::endl; 
+            runfile << "\n number of bytes read from cache (in B): " << curr_num_bytes_rc - prev_num_bytes_r << std::endl;
+            runfile << "\n number of bytes written cancelled by cache (in B): " << curr_num_bytes_wc - prev_num_bytes_wc << std::endl; 
             total_time = (t!=0 && time_elapsed > total_time)? total_time:time_elapsed;
         }
         
@@ -584,7 +626,7 @@ trun run_for_one_predicate(int num_columns,int num_row_groups, std::unique_ptr<p
         avgtime.b_mem_used = curr_mem_used-prev_mem_used;
         avgtime.b_read_bytes = curr_num_bytes_r - prev_num_bytes_r;
         avgtime.b_write_bytes = curr_num_bytes_w - prev_num_bytes_w;
-        std::cout << " ------------------------------------------------------------------------ " << std::endl;
+        runfile << " ------------------------------------------------------------------------ " << std::endl;
         /**************FIRST PASS WITH INDEX WITH BINARY WITH BF WITHOUT PAGE BF*****************/
 
         total_time = 0.0;
@@ -592,24 +634,24 @@ trun run_for_one_predicate(int num_columns,int num_row_groups, std::unique_ptr<p
         prev_mem_used = getMemValue();
         prev_num_bytes_r = getReadBytesValue();
         prev_num_bytes_w = getWriteBytesValue();
-        std::cout << " ------------------------------------------------------------------------ " << std::endl;
-        std::cout << "\n time for predicate one pass with binary with bloom filter: " << std::endl;
+        runfile << " ------------------------------------------------------------------------ " << std::endl;
+        runfile << "\n time for predicate one pass with binary with bloom filter: " << std::endl;
         for(int t  =0 ; t< num_runs; t++){
             start_time = clock();
-          first_pass_for_predicate_only(row_group_reader,col_id,num_columns,predicate_val,true,equal_to, binary_search, with_bloom_filter,!with_page_bf);
+          first_pass_for_predicate_only(runfile, row_group_reader,col_id,num_columns,predicate_val,true,equal_to, binary_search, with_bloom_filter,!with_page_bf);
           end_time = clock();
           
             float time_elapsed = ((float) (end_time-start_time))/CLOCKS_PER_SEC;
 
-            std::cout << std::setprecision(3) << time_elapsed << std::endl;
+            runfile << std::setprecision(3) << time_elapsed << std::endl;
             curr_mem_used = getMemValue();
             curr_num_bytes_r = getReadBytesValue();
             curr_num_bytes_w = getWriteBytesValue();
-            std::cout << "\n memory used (in kB): " << curr_mem_used-prev_mem_used << std::endl;
-            std::cout << "\n number of bytes read from storage layer (in B): " << curr_num_bytes_r - prev_num_bytes_r << std::endl;
-            std::cout << "\n number of bytes written to storage (in B): " << curr_num_bytes_w - prev_num_bytes_w << std::endl; 
-            std::cout << "\n number of bytes read from cache (in B): " << curr_num_bytes_rc - prev_num_bytes_r << std::endl;
-            std::cout << "\n number of bytes written cancelled by cache (in B): " << curr_num_bytes_wc - prev_num_bytes_wc << std::endl; 
+            runfile << "\n memory used (in kB): " << curr_mem_used-prev_mem_used << std::endl;
+            runfile << "\n number of bytes read from storage layer (in B): " << curr_num_bytes_r - prev_num_bytes_r << std::endl;
+            runfile << "\n number of bytes written to storage (in B): " << curr_num_bytes_w - prev_num_bytes_w << std::endl; 
+            runfile << "\n number of bytes read from cache (in B): " << curr_num_bytes_rc - prev_num_bytes_r << std::endl;
+            runfile << "\n number of bytes written cancelled by cache (in B): " << curr_num_bytes_wc - prev_num_bytes_wc << std::endl; 
 
             total_time = (t!=0 && time_elapsed > total_time)? total_time:time_elapsed;
         }
@@ -619,31 +661,31 @@ trun run_for_one_predicate(int num_columns,int num_row_groups, std::unique_ptr<p
         avgtime.w_blf_mem_used = curr_mem_used-prev_mem_used;
         avgtime.w_blf_read_bytes = curr_num_bytes_r - prev_num_bytes_r;
         avgtime.w_blf_write_bytes = curr_num_bytes_w - prev_num_bytes_w;
-        std::cout << " ------------------------------------------------------------------------ " << std::endl;
+        runfile << " ------------------------------------------------------------------------ " << std::endl;
       /**************FIRST PASS WITH INDEX WITH BINARY WITH BF WITH PAGE BF*****************/
         total_time = 0.0;
         total_pages_scanned = 0.0;
         prev_mem_used = getMemValue();
         prev_num_bytes_r = getReadBytesValue();
         prev_num_bytes_w = getWriteBytesValue();
-        std::cout << " ------------------------------------------------------------------------ " << std::endl;
-        std::cout << "\n time for predicate one pass all enabled: " << std::endl;
+        runfile << " ------------------------------------------------------------------------ " << std::endl;
+        runfile << "\n time for predicate one pass all enabled: " << std::endl;
         for(int t  =0 ; t< num_runs; t++){
             start_time = clock();
-          first_pass_for_predicate_only(row_group_reader,col_id,num_columns,predicate_val,true,equal_to,binary_search, with_bloom_filter,with_page_bf);
+          first_pass_for_predicate_only(runfile,row_group_reader,col_id,num_columns,predicate_val,true,equal_to,binary_search, with_bloom_filter,with_page_bf);
           end_time = clock();
           
             float time_elapsed = ((float) (end_time-start_time))/CLOCKS_PER_SEC;
 
-            std::cout << std::setprecision(3) << time_elapsed << std::endl;
+            runfile << std::setprecision(3) << time_elapsed << std::endl;
             curr_mem_used = getMemValue();
             curr_num_bytes_r = getReadBytesValue();
             curr_num_bytes_w = getWriteBytesValue();
-            std::cout << "\n memory used (in kB): " << curr_mem_used-prev_mem_used << std::endl;
-            std::cout << "\n number of bytes read from storage layer (in B): " << curr_num_bytes_r - prev_num_bytes_r << std::endl;
-            std::cout << "\n number of bytes written to storage (in B): " << curr_num_bytes_w - prev_num_bytes_w << std::endl; 
-            std::cout << "\n number of bytes read from cache (in B): " << curr_num_bytes_rc - prev_num_bytes_r << std::endl;
-            std::cout << "\n number of bytes written cancelled by cache (in B): " << curr_num_bytes_wc - prev_num_bytes_wc << std::endl; 
+            runfile << "\n memory used (in kB): " << curr_mem_used-prev_mem_used << std::endl;
+            runfile << "\n number of bytes read from storage layer (in B): " << curr_num_bytes_r - prev_num_bytes_r << std::endl;
+            runfile << "\n number of bytes written to storage (in B): " << curr_num_bytes_w - prev_num_bytes_w << std::endl; 
+            runfile << "\n number of bytes read from cache (in B): " << curr_num_bytes_rc - prev_num_bytes_r << std::endl;
+            runfile << "\n number of bytes written cancelled by cache (in B): " << curr_num_bytes_wc - prev_num_bytes_wc << std::endl; 
 
             total_time = (t!=0 && time_elapsed > total_time)? total_time:time_elapsed;
         }
@@ -653,7 +695,7 @@ trun run_for_one_predicate(int num_columns,int num_row_groups, std::unique_ptr<p
         avgtime.w_pageblf_mem_used = curr_mem_used-prev_mem_used;
         avgtime.w_pageblf_read_bytes = curr_num_bytes_r - prev_num_bytes_r;
         avgtime.w_pageblf_write_bytes = curr_num_bytes_w - prev_num_bytes_w;
-        std::cout << " ########################################################################## " << std::endl;
+        runfile << " ########################################################################## " << std::endl;
 
       /***********FIRST PASS END **********/
 
@@ -667,7 +709,7 @@ trun run_for_one_predicate(int num_columns,int num_row_groups, std::unique_ptr<p
 }
 
 
-int64_t first_pass_for_predicate_only(std::shared_ptr<parquet::RowGroupReader> row_group_reader,int col_id, int num_columns, char* predicate_val,bool with_index,
+int64_t first_pass_for_predicate_only(std::ofstream& runfile, std::shared_ptr<parquet::RowGroupReader> row_group_reader,int col_id, int num_columns, char* predicate_val,bool with_index,
                                    int equal_to, bool binary_search, bool with_bloom_filter, bool with_page_bf) {
 
     int64_t row_index = 0;
@@ -728,7 +770,7 @@ int64_t first_pass_for_predicate_only(std::shared_ptr<parquet::RowGroupReader> r
           row_counter = 0;
           generic_reader->Skip(row_index);
           do{ ind++;
-            if((printVal(column_reader_with_index,generic_reader,ind,vals,row_counter,true,equal_to)))
+            if((printVal(runfile, column_reader_with_index,generic_reader,ind,vals,row_counter,true,equal_to)))
                break;
           }while((generic_reader->HasNext()));
         }
@@ -736,7 +778,7 @@ int64_t first_pass_for_predicate_only(std::shared_ptr<parquet::RowGroupReader> r
             while (generic_reader->HasNext()) { 
               ind++;
               count_pages_scanned++;
-              if(printVal(column_reader_with_index,generic_reader,ind,vals,row_counter,true,equal_to))
+              if(printVal(runfile, column_reader_with_index,generic_reader,ind,vals,row_counter,true,equal_to))
                break;
           //        int64_t expected_value = col_row_counts[col_id];  
           //        assert(value == expected_value);
@@ -744,12 +786,12 @@ int64_t first_pass_for_predicate_only(std::shared_ptr<parquet::RowGroupReader> r
             } 
           }
           // Read all the rows in the column
-          std::cout << "| page index: " << page_index << "| number of rows loaded: " << ind <<
+          runfile << "| page index: " << page_index << "| number of rows loaded: " << ind <<
           "| total number of pages: " << total_num_pages << "| last page first row index: " << last_first_row << std::endl;
         
         }
         else{
-          std::cout << "non-member query" << std::endl;
+          runfile << "non-member query" << std::endl;
         }
       }
        else{
@@ -760,20 +802,20 @@ int64_t first_pass_for_predicate_only(std::shared_ptr<parquet::RowGroupReader> r
               row_counter = 0;
               generic_reader->Skip(row_index);
               do{ ind++;
-                  if((printVal(column_reader_with_index,generic_reader,ind,vals,row_counter,true,equal_to))){
+                  if((printVal(runfile, column_reader_with_index,generic_reader,ind,vals,row_counter,true,equal_to))){
                     found = true;
                     break;
                   }
                   
               }while((generic_reader->HasNext()));
             // Read all the rows in the column
-            std::cout << "| page index: " << unsorted_page_index[index_list_count] << "| number of rows loaded: " << ind <<
+            runfile << "| page index: " << unsorted_page_index[index_list_count] << "| number of rows loaded: " << ind <<
            "| total number of pages: " << total_num_pages << "| last page first row index: " << last_first_row << std::endl;
             index_list_count++;
             if (found) break;
           }
           if ( ind == (int)unsorted_row_index.size())
-             std::cout << "non-member query" << std::endl;
+             runfile << "non-member query" << std::endl;
        }
 
       return count_pages_scanned;
@@ -934,7 +976,7 @@ void returnReaderwithType(std::shared_ptr<parquet::ColumnReader>column_reader, p
       }
 }
 
-bool printVal(std::shared_ptr<parquet::ColumnReader>column_reader, parquet::ColumnReader* int64_reader,int ind,return_multiple vals,int64_t& row_counter,
+bool printVal(std::ofstream& runfile, std::shared_ptr<parquet::ColumnReader>column_reader, parquet::ColumnReader* int64_reader,int ind,return_multiple vals,int64_t& row_counter,
               bool checkpredicate = false,int equal_to = 0) {
 
       int64_t values_read = 0;
@@ -949,7 +991,7 @@ bool printVal(std::shared_ptr<parquet::ColumnReader>column_reader, parquet::Colu
            
            if ( equal_to == 0 && checkpredicate && test == predicate) {
            row_counter = ind;
-           std::cout << "with predicate row number: " << row_counter << " " << test << "\n" ;
+           runfile << "with predicate row number: " << row_counter << " " << test << "\n" ;
            //std::cout << "predicate: " << *((int64_t*)predicate) << std::endl;
            return true;
           }
@@ -975,7 +1017,7 @@ bool printVal(std::shared_ptr<parquet::ColumnReader>column_reader, parquet::Colu
            
            if ( equal_to == 0 && checkpredicate && val == predicate) {
            row_counter = ind;
-           std::cout << "with predicate row number: " << row_counter << " " << val << "\n";
+           runfile << "with predicate row number: " << row_counter << " " << val << "\n";
            //std::cout << "predicate: " << *((int64_t*)predicate) << std::endl;
            return true;
           }
@@ -1007,7 +1049,7 @@ bool printVal(std::shared_ptr<parquet::ColumnReader>column_reader, parquet::Colu
         // Verify the value written
           if ( equal_to == 0 && checkpredicate && value == predicate) {
            row_counter = ind;
-           std::cout << "with predicate row number: " << row_counter << " " << value << "\n";
+           runfile << "with predicate row number: " << row_counter << " " << value << "\n";
            //std::cout << "predicate: " << *((int64_t*)predicate) << std::endl;
            return true;
           }
@@ -1033,7 +1075,7 @@ bool printVal(std::shared_ptr<parquet::ColumnReader>column_reader, parquet::Colu
            
            if ( equal_to == 0 && checkpredicate && val == predicate) {
            row_counter = ind;
-           std::cout << "with predicate row number: " << row_counter << " " << val << "\n";
+           runfile << "with predicate row number: " << row_counter << " " << val << "\n";
            //std::cout << "predicate: " << *((int64_t*)predicate) << std::endl;
            return true;
           }
@@ -1058,7 +1100,7 @@ bool printVal(std::shared_ptr<parquet::ColumnReader>column_reader, parquet::Colu
            int64_reader->callReadBatch(1,&val,&values_read);
            if ( checkpredicate && fabs(val-predicate)<=std::numeric_limits<double>::epsilon()*error_factor) {
            row_counter = ind;
-           std::cout << "with predicate row number: " << row_counter << " " << val << "\n";
+           runfile << "with predicate row number: " << row_counter << " " << val << "\n";
            //std::cout << "predicate: " << *((int64_t*)predicate) << std::endl;
            return true;
           }
@@ -1085,7 +1127,7 @@ bool printVal(std::shared_ptr<parquet::ColumnReader>column_reader, parquet::Colu
 
            if ( equal_to == 0 && checkpredicate && fabs(val-predicate)<=std::numeric_limits<double>::epsilon()*error_factor) {
            row_counter = ind;
-           std::cout << "with predicate row number: " << row_counter << " " << val << "\n";
+           runfile << "with predicate row number: " << row_counter << " " << val << "\n";
            //std::cout << "predicate: " << *((int64_t*)predicate) << std::endl;
            return true;
           }
@@ -1114,7 +1156,7 @@ bool printVal(std::shared_ptr<parquet::ColumnReader>column_reader, parquet::Colu
             // std::cout << "row number: " << row_counter << " " << result << "\n";
             if ( equal_to == 0 && checkpredicate && strcmp(result.c_str(),predicate) == 0) {
            row_counter = ind;
-           std::cout << "with predicate row number: " << row_counter << " " << result << "\n";
+           runfile << "with predicate row number: " << row_counter << " " << result << "\n";
            //std::cout << "predicate: " << *((int64_t*)predicate) << std::endl;
            return true;
           }
@@ -1142,7 +1184,7 @@ bool printVal(std::shared_ptr<parquet::ColumnReader>column_reader, parquet::Colu
             // std::cout << "row number: " << row_counter << " " << result << "\n";
             if ( equal_to == 0 && checkpredicate && strcmp(result.c_str(),predicate) == 0) {
            row_counter = ind;
-           std::cout << "with predicate row number: " << row_counter << " " << result << "\n";
+           runfile << "with predicate row number: " << row_counter << " " << result << "\n";
            //std::cout << "predicate: " << *((int64_t*)predicate) << std::endl;
            return true;
           }

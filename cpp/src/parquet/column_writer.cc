@@ -713,7 +713,7 @@ class ColumnWriterImpl {
       
       Status s_min = TruncateDown(page_stats.min(), PAGE_INDEX_MAX_STRING_LENGTH, &min_val);
       
-      Status s_max = TruncateUp(page_stats.max(), PAGE_INDEX_MAX_STRING_LENGTH, &max_val);
+      Status s_max = TruncateDown(page_stats.max(), PAGE_INDEX_MAX_STRING_LENGTH, &max_val);
 
       if (!s_min.ok()) {
         return s_min;

@@ -660,11 +660,17 @@ class SerializedRowGroup : public RowGroupReader::Contents {
          case Type::BYTE_ARRAY:
          {
              char* v = (char*) predicate;
-
-             uint8_t ptr = *v;
-             ByteArray pba((uint32_t)strlen(v),&ptr);
-             if (with_bloom_filter && !blf.FindHash(blf.Hash(&pba))) {
-                 row_index = -1; return;
+             if (with_bloom_filter) {
+               const char* p = (char*) predicate;
+               char dest[124];
+               for ( uint32_t i = 0; i < (124-strlen(p));i++) dest[i] = '0';
+               for ( uint32_t i = (124-strlen(p)); i < 124;i++) dest[i] = p[i-(124-strlen(p))];
+               dest[124] = '\0';
+               std::string test(dest);
+               ByteArray pba(test.size(),reinterpret_cast<const uint8_t*>(test.c_str()));
+               if (!blf.FindHash(blf.Hash(&pba))) {
+                   row_index = -1; return;
+               }
              }
 
              std::string str(v);
