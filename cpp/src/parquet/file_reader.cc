@@ -660,17 +660,15 @@ class SerializedRowGroup : public RowGroupReader::Contents {
          case Type::BYTE_ARRAY:
          {
              char* v = (char*) predicate;
-             if (with_bloom_filter) {
-               const char* p = (char*) predicate;
-               char dest[124];
-               for ( uint32_t i = 0; i < (124-strlen(p));i++) dest[i] = '0';
-               for ( uint32_t i = (124-strlen(p)); i < 124;i++) dest[i] = p[i-(124-strlen(p))];
-               dest[124] = '\0';
-               std::string test(dest);
-               ByteArray pba(test.size(),reinterpret_cast<const uint8_t*>(test.c_str()));
-               if (!blf.FindHash(blf.Hash(&pba))) {
-                   row_index = -1; return;
-               }
+             const char* p = (char*) predicate;
+             char dest[124];
+             for ( uint32_t i = 0; i < (124-strlen(p));i++) dest[i] = '0';
+             for ( uint32_t i = (124-strlen(p)); i < 124;i++) dest[i] = p[i-(124-strlen(p))];
+             dest[124] = '\0';
+             std::string test(dest);
+             ByteArray pba(test.size(),reinterpret_cast<const uint8_t*>(test.c_str()));
+             if (with_bloom_filter && !blf.FindHash(blf.Hash(&pba))) {
+                 row_index = -1; return;
              }
 
              std::string str(v);
@@ -714,12 +712,12 @@ class SerializedRowGroup : public RowGroupReader::Contents {
               }
               else {
                  for (uint64_t itemindex = 0;itemindex < offset_index.page_locations.size();itemindex++) {
-                    std::string page_min_orig = col_index.min_values[itemindex];
-                    std::string page_max_orig = col_index.max_values[itemindex];
+                    std::string page_min_orig = (std::string)col_index.min_values[itemindex].c_str();
+                    std::string page_max_orig = (std::string)col_index.max_values[itemindex].c_str();
                     std::string page_min(page_min_orig.substr(page_min_orig.length()-str.length(),str.length()));
                     std::string page_max(page_max_orig.substr(page_max_orig.length()-str.length(),str.length()));
 
-                   if ( str.compare(page_min)>0 && str.compare(page_max)<0 ) {
+                   if ( test.compare(page_min_orig)>0 && test.compare(page_max_orig)<0 ) {
                       min_index = itemindex;
                       count_pages_scanned = itemindex;
                    }

@@ -121,7 +121,7 @@ void writecolswithindex(int NUM_ROWS_PER_ROW_GROUP,parquet::RowGroupWriter*& rg_
           hello[FIXED_LENGTH-ci-1] = (startnumber%10) + 48;
           startnumber /= 10;
       }
-      
+      hello[FIXED_LENGTH] = '\0';
       if (i % 2 == 0) {
         int16_t definition_level = 1;
         value.ptr = reinterpret_cast<const uint8_t*>(&hello[0]);
