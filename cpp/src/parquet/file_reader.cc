@@ -682,7 +682,7 @@ class SerializedRowGroup : public RowGroupReader::Contents {
                       itemindex = (begin_index + last_index)/2;
                       std::string page_min_curr_orig = (std::string)col_index.min_values[itemindex].c_str(); 
                       std::string page_min_curr(page_min_curr_orig.substr(page_min_curr_orig.length() - str.length(),str.length()));
-                      if ( str.compare(page_min_curr) < 0 ){
+                      if ( test.compare(page_min_curr_orig) < 0 ){
                          last_index -= 1;
                          count_pages_scanned++;
                          continue;
@@ -690,11 +690,11 @@ class SerializedRowGroup : public RowGroupReader::Contents {
                       if ( itemindex < last_index ){
                         std::string page_min_next_orig = (std::string)col_index.min_values[itemindex+1].c_str();
                         std::string page_min_next(page_min_next_orig.substr(page_min_curr_orig.length() - str.length(),str.length()));
-                        if ( str.compare(page_min_next) > 0 ){
+                        if ( test.compare(page_min_next_orig) > 0 ){
                           begin_index += 1;
                           count_pages_scanned++;
                         }
-                        if ( str.compare(page_min_next) < 0 && str.compare(page_min_curr) > 0 ){
+                        if ( test.compare(page_min_next_orig) < 0 && test.compare(page_min_curr_orig) > 0 ){
                             begin_index = last_index + 1;
                             count_pages_scanned++;
                         }
