@@ -585,7 +585,7 @@ class SerializedRowGroup : public RowGroupReader::Contents {
                   float error_factor = 9*pow(10,15);
                   float max_diff = *page_max - *page_min;
 
-                  if ( fabs(max_diff - (fabs(v-*page_min)+fabs(*page_max-v))) <= error_factor*epsilon ) {
+                  if ( *page_min < v && v > *page_max ) {
 
                     min_index = itemindex;
                     count_pages_scanned = itemindex;
@@ -648,7 +648,7 @@ class SerializedRowGroup : public RowGroupReader::Contents {
                    auto epsilon = std::numeric_limits<double>::epsilon();
                    double error_factor = 9*pow(10,15);
 
-                   if ( fabs(max_diff - (fabs(v-*page_min)+fabs(*page_max-v))) <= error_factor*epsilon  ) {
+                   if ( *page_min < v && v > *page_max ) {
 
                     min_index = itemindex;
                     count_pages_scanned = itemindex;
