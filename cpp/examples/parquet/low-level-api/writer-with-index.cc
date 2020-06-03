@@ -122,19 +122,20 @@ void writecolswithindex(int NUM_ROWS_PER_ROW_GROUP,parquet::RowGroupWriter*& rg_
           startnumber /= 10;
       }
       hello[FIXED_LENGTH] = '\0';
-      if (i % 2 == 0) {
-        int16_t definition_level = 1;
-        value.ptr = reinterpret_cast<const uint8_t*>(&hello[0]);
-        value.len = FIXED_LENGTH;
-        ba_writer->WriteBatch(1, &definition_level, nullptr, &value, true);
-        rg_writer->AppendRowGroupBloomFilter(&value);
-      } else {
-        int16_t definition_level = 1;
-        value.ptr = reinterpret_cast<const uint8_t*>(&hello[0]);
-        value.len = FIXED_LENGTH;
-        ba_writer->WriteBatch(1, &definition_level, nullptr, &value, true);
-        rg_writer->AppendRowGroupBloomFilter(&value);
-      }
+      std::string test = hello;
+      // if (i % 2 == 0) {
+      int16_t definition_level = 1;
+      value.ptr = reinterpret_cast<const uint8_t*>(test.c_str());
+      value.len = test.size();
+      ba_writer->WriteBatch(1, &definition_level, nullptr, &value, true);
+      rg_writer->AppendRowGroupBloomFilter(&value);
+      // } else {
+      //   int16_t definition_level = 1;
+      //   value.ptr = reinterpret_cast<const uint8_t*>(&hello[0]);
+      //   value.len = FIXED_LENGTH;
+      //   ba_writer->WriteBatch(1, &definition_level, nullptr, &value, true);
+      //   rg_writer->AppendRowGroupBloomFilter(&value);
+      // }
     }
     std::cout << "number of bytes bytearray " << num_bytes/NUM_ROWS_PER_ROW_GROUP << std::endl;
       

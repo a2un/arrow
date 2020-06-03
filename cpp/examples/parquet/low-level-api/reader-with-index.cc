@@ -544,7 +544,8 @@ trun run_for_one_predicate(std::ofstream& runfile,int num_columns,int num_row_gr
             curr_mem_used = getMemValue();
             curr_num_bytes_r = getReadBytesValue();
             curr_num_bytes_w = getWriteBytesValue();
-            runfile << "\n memory used (in kB): " << curr_mem_used-prev_mem_used << std::endl;
+            runfile << "\n memory used currently by the process in virtual memory (in kB): " << curr_mem_used << std::endl;
+            runfile << "\n change in memory used (in kB): " << curr_mem_used-prev_mem_used << std::endl;
             runfile << "\n number of bytes read from storage layer (in B): " << curr_num_bytes_r - prev_num_bytes_r << std::endl;
             runfile << "\n number of bytes written to storage (in B): " << curr_num_bytes_w - prev_num_bytes_w << std::endl; 
             runfile << "\n number of bytes read from cache (in B): " << curr_num_bytes_rc - prev_num_bytes_r << std::endl;
@@ -579,7 +580,8 @@ trun run_for_one_predicate(std::ofstream& runfile,int num_columns,int num_row_gr
             curr_mem_used = getMemValue();
             curr_num_bytes_r = getReadBytesValue();
             curr_num_bytes_w = getWriteBytesValue();
-            runfile << "\n memory used (in kB): " << curr_mem_used-prev_mem_used << std::endl;
+            runfile << "\n memory used currently by the process in virtual memory (in kB): " << curr_mem_used << std::endl;
+            runfile << "\n change in memory used (in kB): " << curr_mem_used-prev_mem_used << std::endl;
             runfile << "\n number of bytes read from storage layer (in B): " << curr_num_bytes_r - prev_num_bytes_r << std::endl;
             runfile << "\n number of bytes written to storage (in B): " << curr_num_bytes_w - prev_num_bytes_w << std::endl; 
             runfile << "\n number of bytes read from cache (in B): " << curr_num_bytes_rc - prev_num_bytes_r << std::endl;
@@ -613,7 +615,8 @@ trun run_for_one_predicate(std::ofstream& runfile,int num_columns,int num_row_gr
             curr_mem_used = getMemValue();
             curr_num_bytes_r = getReadBytesValue();
             curr_num_bytes_w = getWriteBytesValue();
-            runfile << "\n memory used (in kB): " << curr_mem_used-prev_mem_used << std::endl;
+            runfile << "\n memory used currently by the process in virtual memory (in kB): " << curr_mem_used << std::endl;
+            runfile << "\n change in memory used (in kB): " << curr_mem_used-prev_mem_used << std::endl;
             runfile << "\n number of bytes read from storage layer (in B): " << curr_num_bytes_r - prev_num_bytes_r << std::endl;
             runfile << "\n number of bytes written to storage (in B): " << curr_num_bytes_w - prev_num_bytes_w << std::endl; 
             runfile << "\n number of bytes read from cache (in B): " << curr_num_bytes_rc - prev_num_bytes_r << std::endl;
@@ -647,7 +650,8 @@ trun run_for_one_predicate(std::ofstream& runfile,int num_columns,int num_row_gr
             curr_mem_used = getMemValue();
             curr_num_bytes_r = getReadBytesValue();
             curr_num_bytes_w = getWriteBytesValue();
-            runfile << "\n memory used (in kB): " << curr_mem_used-prev_mem_used << std::endl;
+            runfile << "\n memory used currently by the process in virtual memory (in kB): " << curr_mem_used << std::endl;
+            runfile << "\n change in memory used (in kB): " << curr_mem_used-prev_mem_used << std::endl;
             runfile << "\n number of bytes read from storage layer (in B): " << curr_num_bytes_r - prev_num_bytes_r << std::endl;
             runfile << "\n number of bytes written to storage (in B): " << curr_num_bytes_w - prev_num_bytes_w << std::endl; 
             runfile << "\n number of bytes read from cache (in B): " << curr_num_bytes_rc - prev_num_bytes_r << std::endl;
@@ -681,7 +685,8 @@ trun run_for_one_predicate(std::ofstream& runfile,int num_columns,int num_row_gr
             curr_mem_used = getMemValue();
             curr_num_bytes_r = getReadBytesValue();
             curr_num_bytes_w = getWriteBytesValue();
-            runfile << "\n memory used (in kB): " << curr_mem_used-prev_mem_used << std::endl;
+            runfile << "\n memory used currently by the process in virtual memory (in kB): " << curr_mem_used << std::endl;
+            runfile << "\n change in memory used (in kB): " << curr_mem_used-prev_mem_used << std::endl;
             runfile << "\n number of bytes read from storage layer (in B): " << curr_num_bytes_r - prev_num_bytes_r << std::endl;
             runfile << "\n number of bytes written to storage (in B): " << curr_num_bytes_w - prev_num_bytes_w << std::endl; 
             runfile << "\n number of bytes read from cache (in B): " << curr_num_bytes_rc - prev_num_bytes_r << std::endl;
