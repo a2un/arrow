@@ -1161,13 +1161,13 @@ class TypedColumnWriterImpl : public ColumnWriterImpl, public TypedColumnWriter<
 
   void AppendValuesToPageBloomFilter(int64_t num_values, const float* values) {
     for ( uint32_t i=0; i < num_values; i++){
-       blf[blf.size()-1].InsertHash(blf[blf.size()-1].Hash(values[i]));
+       blf[blf.size()-1].InsertHash(blf[blf.size()-1].Hash((float)(int64_t)values[i]));
     }
   }
 
   void AppendValuesToPageBloomFilter(int64_t num_values, const double* values) {
     for ( uint32_t i=0; i < num_values; i++){
-       blf[blf.size()-1].InsertHash(blf[blf.size()-1].Hash(values[i]));
+       blf[blf.size()-1].InsertHash(blf[blf.size()-1].Hash((double)(int64_t)values[i]));
     }
   }
 

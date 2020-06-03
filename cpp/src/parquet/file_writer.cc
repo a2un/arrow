@@ -305,11 +305,11 @@ class RowGroupSerializer : public RowGroupWriter::Contents {
   }
 
   void AppendRowGroupBloomFilter(float values) override {
-      blf_[next_column_index_-1].InsertHash(blf_[next_column_index_-1].Hash(values));
+      blf_[next_column_index_-1].InsertHash(blf_[next_column_index_-1].Hash((float)(int64_t)values));
   }
 
   void AppendRowGroupBloomFilter(double values) override {
-      blf_[next_column_index_-1].InsertHash(blf_[next_column_index_-1].Hash(values));
+      blf_[next_column_index_-1].InsertHash(blf_[next_column_index_-1].Hash((double)(int64_t)values));
   }
 
   void AppendRowGroupBloomFilter(ByteArray* values) override {

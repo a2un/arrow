@@ -265,12 +265,12 @@ class SerializedRowGroup : public RowGroupReader::Contents {
           }
           case Type::FLOAT:{
              float v = *((float*) predicate);
-             if (!page_blf.FindHash(page_blf.Hash(v))) row_index = -1;
+             if (!page_blf.FindHash(page_blf.Hash((float)(int64_t)v))) row_index = -1;
              break;
           }
           case Type::DOUBLE:{
              double v = *((double*) predicate);
-             if (!page_blf.FindHash(page_blf.Hash(v))) row_index = -1;
+             if (!page_blf.FindHash(page_blf.Hash((double)(int64_t)v))) row_index = -1;
              break;
           }
           case Type::BYTE_ARRAY:{
@@ -322,12 +322,12 @@ class SerializedRowGroup : public RowGroupReader::Contents {
           }
           case Type::FLOAT:{
              float v = *((float*) predicate);
-             if (!page_blf.FindHash(page_blf.Hash(v))) unsorted_row_index.pop_back();
+             if (!page_blf.FindHash(page_blf.Hash((float)(int64_t)v))) unsorted_row_index.pop_back();
              break;
           }
           case Type::DOUBLE:{
              double v = *((double*) predicate);
-             if (!page_blf.FindHash(page_blf.Hash(v))) unsorted_row_index.pop_back();
+             if (!page_blf.FindHash(page_blf.Hash((double)(int64_t)v))) unsorted_row_index.pop_back();
              break;
           }
           case Type::BYTE_ARRAY:{
@@ -535,7 +535,7 @@ class SerializedRowGroup : public RowGroupReader::Contents {
          case Type::FLOAT:
          {
              float v = *((float*) predicate);
-             if (with_bloom_filter && !blf.FindHash(blf.Hash(v))) {
+             if (with_bloom_filter && !blf.FindHash(blf.Hash((float)(int64_t)v))) {
                  row_index = -1; return;
              }
              
@@ -598,7 +598,7 @@ class SerializedRowGroup : public RowGroupReader::Contents {
          case Type::DOUBLE:
          {
              double v = *((double*) predicate);
-             if (with_bloom_filter && !blf.FindHash(blf.Hash(v))) {
+             if (with_bloom_filter && !blf.FindHash(blf.Hash((double)(int64_t)v))) {
                  row_index = -1; return;
              }
              
@@ -856,7 +856,7 @@ class SerializedRowGroup : public RowGroupReader::Contents {
          case Type::FLOAT:
          {
              float v = *((float*) predicate);
-             if (with_bloom_filter && !blf.FindHash(blf.Hash(v))) {
+             if (with_bloom_filter && !blf.FindHash(blf.Hash((float)(int64_t)v))) {
                  return;
              }
              
@@ -882,7 +882,7 @@ class SerializedRowGroup : public RowGroupReader::Contents {
          case Type::DOUBLE:
          {
              double v = *((double*) predicate);
-             if (with_bloom_filter && !blf.FindHash(blf.Hash(v))) {
+             if (with_bloom_filter && !blf.FindHash(blf.Hash((double)(int64_t)v))) {
                  return;
              }
              
@@ -908,10 +908,15 @@ class SerializedRowGroup : public RowGroupReader::Contents {
          {
              char* v = (char*) predicate;
 
-             uint8_t ptr = *v;
-             ByteArray pba((uint32_t)strlen(v),&ptr);
+             const char* p = (char*) predicate;
+             char dest[124];
+             for ( uint32_t i = 0; i < (124-strlen(p));i++) dest[i] = '0';
+             for ( uint32_t i = (124-strlen(p)); i < 124;i++) dest[i] = p[i-(124-strlen(p))];
+             dest[124] = '\0';
+             std::string test(dest);
+             ByteArray pba(test.size(),reinterpret_cast<const uint8_t*>(test.c_str()));
              if (with_bloom_filter && !blf.FindHash(blf.Hash(&pba))) {
-                 return;
+                return;
              }
 
              std::string str(v);
@@ -922,7 +927,7 @@ class SerializedRowGroup : public RowGroupReader::Contents {
                 std::string page_min(page_min_orig.substr(page_min_orig.length()-str.length(),str.length()));
                 std::string page_max(page_max_orig.substr(page_max_orig.length()-str.length(),str.length()));
 
-                if ( str.compare(page_min)>0 && str.compare(page_max)<0 ) {
+                if ( test.compare(page_min_orig)>0 && test.compare(page_max_orig)<0 ) {
                   unsorted_min_index.push_back(itemindex);
                   count_pages_scanned = itemindex;
                 }
