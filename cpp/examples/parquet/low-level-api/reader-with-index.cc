@@ -1154,21 +1154,27 @@ bool printVal(std::ofstream& runfile, std::shared_ptr<parquet::ColumnReader>colu
           {
             parquet::ByteArray str;
             char* predicate = vals.c;
+            uint32_t FIXED_LENGTH = 124;
+            char dest[FIXED_LENGTH];
+            for ( uint32_t i = 0; i < (FIXED_LENGTH-strlen(predicate));i++) dest[i] = '0';
+            for ( uint32_t i = (FIXED_LENGTH-strlen(predicate)); i < FIXED_LENGTH;i++) dest[i] = predicate[i-(FIXED_LENGTH-strlen(predicate))];
+            dest[FIXED_LENGTH] = '\0';
+            std::string pstring(dest);
             int64_reader->callReadBatch(1,&str,&values_read);
             std::string result_value = parquet::ByteArrayToString(str);
-            std::string result(result_value.substr(result_value.length()-strlen(predicate),strlen(predicate)));
+            // std::string result(result_value.substr(result_value.length()-strlen(predicate),strlen(predicate)));
             row_counter = ind;
             // std::cout << "row number: " << row_counter << " " << result << "\n";
-            if ( equal_to == 0 && checkpredicate && strcmp(result.c_str(),predicate) == 0) {
+            if ( equal_to == 0 && checkpredicate && result_value.compare(pstring) == 0) {
            row_counter = ind;
-           runfile << "with predicate row number: " << row_counter << " " << result << "\n";
+           runfile << "with predicate row number: " << row_counter << " " << result_value << "\n";
            //std::cout << "predicate: " << *((int64_t*)predicate) << std::endl;
            return true;
           }
-          else if ( equal_to == -1 && checkpredicate && strcmp(result.c_str(),predicate) < 0 ){
+          else if ( equal_to == -1 && checkpredicate && result_value.compare(pstring) < 0 ){
 
           }
-          else if ( equal_to == 1 && checkpredicate && strcmp(result.c_str(),predicate) > 0 ) {
+          else if ( equal_to == 1 && checkpredicate && result_value.compare(pstring) > 0 ) {
 
           }
           else{
