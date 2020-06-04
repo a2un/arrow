@@ -336,6 +336,7 @@ class SerializedRowGroup : public RowGroupReader::Contents {
              break;
           }
           case Type::BYTE_ARRAY:{
+             const char* p = (char*) predicate;
              uint32_t FIXED_LENGTH = 124;
              char dest[FIXED_LENGTH];
              for ( uint32_t i = 0; i < (FIXED_LENGTH-strlen(p));i++) dest[i] = '0';
