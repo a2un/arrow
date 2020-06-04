@@ -122,7 +122,7 @@ void writecolswithindex(int NUM_ROWS_PER_ROW_GROUP,parquet::RowGroupWriter*& rg_
           startnumber /= 10;
       }
       hello[FIXED_LENGTH] = '\0';
-      std::string test = hello;
+      std::string test(hello);
       // if (i % 2 == 0) {
       int16_t definition_level = 1;
       value.ptr = reinterpret_cast<const uint8_t*>(test.c_str());
@@ -336,7 +336,7 @@ int main(int argc, char** argv) {
     int NUM_ROWS = atoi(argv[1]);
     int num_rg = atoi(argv[2]);
     writeparquetwithindex(NUM_ROWS,num_rg);
-    writeparquetwithindexunsorted(NUM_ROWS,num_rg);
+    //writeparquetwithindexunsorted(NUM_ROWS,num_rg);
   }
   
   std::cout << "Parquet Writing and Reading Complete" << std::endl;
