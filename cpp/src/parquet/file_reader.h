@@ -36,6 +36,8 @@ class PageReader;
 class RandomAccessSource;
 class RowGroupMetaData;
 
+static const uint32_t FIXED_LENGTH = 124;
+
 class PARQUET_EXPORT RowGroupReader {
  public:
   // Forward declare a virtual class 'Contents' to aid dependency injection and more
