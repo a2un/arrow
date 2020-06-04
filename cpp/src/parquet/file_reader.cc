@@ -336,9 +336,13 @@ class SerializedRowGroup : public RowGroupReader::Contents {
              break;
           }
           case Type::BYTE_ARRAY:{
-             char* v = (char*) predicate;
-             uint8_t ptr = *v;
-             ByteArray pba((uint32_t)strlen(v),&ptr);
+             uint32_t FIXED_LENGTH = 124;
+             char dest[FIXED_LENGTH];
+             for ( uint32_t i = 0; i < (FIXED_LENGTH-strlen(p));i++) dest[i] = '0';
+             for ( uint32_t i = (FIXED_LENGTH-strlen(p)); i < FIXED_LENGTH;i++) dest[i] = p[i-(FIXED_LENGTH-strlen(p))];
+             dest[FIXED_LENGTH] = '\0';
+             std::string test(dest);
+             ByteArray pba(test.size(),reinterpret_cast<const uint8_t*>(test.c_str()));
              if (!page_blf.FindHash(page_blf.Hash(&pba))) unsorted_row_index.pop_back();
              break;
           }
