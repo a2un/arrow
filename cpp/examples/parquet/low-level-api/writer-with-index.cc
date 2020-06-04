@@ -197,25 +197,26 @@ void writecolswithindexunsorted(int NUM_ROWS_PER_ROW_GROUP,parquet::RowGroupWrit
     for (int i = 0; i < NUM_ROWS_PER_ROW_GROUP; i++) {
       parquet::ByteArray value;
       char hello[FIXED_LENGTH];// = "parquet";
-      int64_t startnumber = rand()%NUM_ROWS_PER_ROW_GROUP;
+      int64_t startnumber = i*FIXED_LENGTH;
       for ( int ci = 0; ci < FIXED_LENGTH; ci++ ) {
           hello[FIXED_LENGTH-ci-1] = (startnumber%10) + 48;
           startnumber /= 10;
       }
-      
-      if (i % 2 == 0) {
-        int16_t definition_level = 1;
-        value.ptr = reinterpret_cast<const uint8_t*>(&hello[0]);
-        value.len = FIXED_LENGTH;
-        ba_writer->WriteBatch(1, &definition_level, nullptr, &value, true);
-        rg_writer->AppendRowGroupBloomFilter(&value);
-      } else {
-        int16_t definition_level = 1;
-        value.ptr = reinterpret_cast<const uint8_t*>(&hello[0]);
-        value.len = FIXED_LENGTH;
-        ba_writer->WriteBatch(1, &definition_level, nullptr, &value, true);
-        rg_writer->AppendRowGroupBloomFilter(&value);
-      }
+      hello[FIXED_LENGTH] = '\0';
+      std::string test(hello);
+      // if (i % 2 == 0) {
+      int16_t definition_level = 1;
+      value.ptr = reinterpret_cast<const uint8_t*>(test.c_str());
+      value.len = test.size();
+      ba_writer->WriteBatch(1, &definition_level, nullptr, &value, true);
+      rg_writer->AppendRowGroupBloomFilter(&value);
+      // } else {
+      //   int16_t definition_level = 1;
+      //   value.ptr = reinterpret_cast<const uint8_t*>(&hello[0]);
+      //   value.len = FIXED_LENGTH;
+      //   ba_writer->WriteBatch(1, &definition_level, nullptr, &value, true);
+      //   rg_writer->AppendRowGroupBloomFilter(&value);
+      // }
     }
     std::cout << "number of bytes ByteArray " << num_bytes/NUM_ROWS_PER_ROW_GROUP << std::endl;
      
@@ -336,7 +337,7 @@ int main(int argc, char** argv) {
     int NUM_ROWS = atoi(argv[1]);
     int num_rg = atoi(argv[2]);
     writeparquetwithindex(NUM_ROWS,num_rg);
-    //writeparquetwithindexunsorted(NUM_ROWS,num_rg);
+    writeparquetwithindexunsorted(NUM_ROWS,num_rg);
   }
   
   std::cout << "Parquet Writing and Reading Complete" << std::endl;
