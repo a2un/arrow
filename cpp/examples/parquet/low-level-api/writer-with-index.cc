@@ -116,7 +116,7 @@ void writecolswithindex(int NUM_ROWS_PER_ROW_GROUP,parquet::RowGroupWriter*& rg_
     for (int i = 0; i < NUM_ROWS_PER_ROW_GROUP; i++) {
       parquet::ByteArray value;
       char hello[FIXED_LENGTH];// = "parquet";
-      int64_t startnumber = i*FIXED_LENGTH;
+      int64_t startnumber = i;
       for ( int ci = 0; ci < FIXED_LENGTH; ci++ ) {
           hello[FIXED_LENGTH-ci-1] = (startnumber%10) + 48;
           startnumber /= 10;
@@ -197,7 +197,7 @@ void writecolswithindexunsorted(int NUM_ROWS_PER_ROW_GROUP,parquet::RowGroupWrit
     for (int i = 0; i < NUM_ROWS_PER_ROW_GROUP; i++) {
       parquet::ByteArray value;
       char hello[FIXED_LENGTH];// = "parquet";
-      int64_t startnumber = i*FIXED_LENGTH;
+      int64_t startnumber = i;
       for ( int ci = 0; ci < FIXED_LENGTH; ci++ ) {
           hello[FIXED_LENGTH-ci-1] = (startnumber%10) + 48;
           startnumber /= 10;
