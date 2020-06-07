@@ -424,11 +424,12 @@ class SerializedRowGroup : public RowGroupReader::Contents {
                  int32_t* page_max = (int32_t*)(void *)col_index.max_values[itemindex].c_str();
                  int32_t max_diff = *page_max - *page_min;
 
-                  if ( *page_min <= v && max_diff >= abs(v - *page_min) ) {
+                  if ( *page_min <= v && v <= *page_max ) {
                     min_index = itemindex;
-                    count_pages_scanned = itemindex;
                   }
+                  count_pages_scanned = itemindex;
                 }
+                min_index = (count_pages_scanned == ((int)offset_index.page_locations.size()-1) && min_index == -1)? count_pages_scanned:min_index;
               }
            break;
          }
@@ -482,11 +483,12 @@ class SerializedRowGroup : public RowGroupReader::Contents {
                   int64_t* page_max = (int64_t*)(void *)col_index.max_values[itemindex].c_str();
                   int64_t max_diff = *page_max - *page_min;
            
-                  if ( *page_min <= v && max_diff >= abs(v - *page_min) ) {
+                  if ( *page_min <= v && v <= *page_max ) {
                     min_index = itemindex;
-                    count_pages_scanned = itemindex;
                   }
+                  count_pages_scanned = itemindex;
                 }
+                min_index = (count_pages_scanned == ((int)offset_index.page_locations.size()-1) && min_index == -1)? count_pages_scanned:min_index;
               }
             break;
          }
@@ -597,13 +599,12 @@ class SerializedRowGroup : public RowGroupReader::Contents {
                   float error_factor = 9*pow(10,15);
                   float max_diff = *page_max - *page_min;
 
-                  if ( *page_min < v && v > *page_max ) {
-
+                  if ( *page_min < v && v < *page_max ) {
                     min_index = itemindex;
-                    count_pages_scanned = itemindex;
-
                   }
+                  count_pages_scanned = itemindex;
                 }
+                min_index = (count_pages_scanned == ((int)offset_index.page_locations.size()-1) && min_index == -1)? count_pages_scanned:min_index;
               }
            break;
          }
@@ -660,19 +661,23 @@ class SerializedRowGroup : public RowGroupReader::Contents {
                    auto epsilon = std::numeric_limits<double>::epsilon();
                    double error_factor = 9*pow(10,15);
 
-                   if ( *page_min < v && v > *page_max ) {
-
-                    min_index = itemindex;
-                    count_pages_scanned = itemindex;
+                   if ( *page_min < v && v < *page_max ) {
+                      min_index = itemindex;
                    }
+                   count_pages_scanned = itemindex;
                 }
+                min_index = (count_pages_scanned == ((int)offset_index.page_locations.size()-1) && min_index == -1)? count_pages_scanned:min_index;
               }
            break;
          }
          case Type::BYTE_ARRAY:
          {
              char* v = (char*) predicate;
-             const char* p = (char*) predicate;
+             char* p = (char*) predicate;
+             // remove leading zeroes in the predicate, if present.
+             int checkzero = 0;
+             while ( p [checkzero] == '0') checkzero++; 
+             p = (p + checkzero);
              char dest[FIXED_LENGTH];
              for ( uint32_t i = 0; i < (FIXED_LENGTH-strlen(p));i++) dest[i] = '0';
              for ( uint32_t i = (FIXED_LENGTH-strlen(p)); i < FIXED_LENGTH;i++) dest[i] = p[i-(FIXED_LENGTH-strlen(p))];
@@ -729,11 +734,12 @@ class SerializedRowGroup : public RowGroupReader::Contents {
                     std::string page_min(page_min_orig.substr(page_min_orig.length()-str.length(),str.length()));
                     std::string page_max(page_max_orig.substr(page_max_orig.length()-str.length(),str.length()));
 
-                   if ( test.compare(page_min_orig)>0 && test.compare(page_max_orig)<0 ) {
+                   if ( test.compare(page_min_orig) > 0 && test.compare(page_max_orig) < 0 ) {
                       min_index = itemindex;
-                      count_pages_scanned = itemindex;
                    }
+                   count_pages_scanned = itemindex;
                 }
+                min_index = (count_pages_scanned == ((int)offset_index.page_locations.size()-1) && min_index == -1)? count_pages_scanned:min_index;
               }
            break;
          }

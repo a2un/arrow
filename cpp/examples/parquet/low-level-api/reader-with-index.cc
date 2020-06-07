@@ -384,38 +384,43 @@ int parquet_reader(int argc,char** argv) {
           runfile<< "|----------------------------col_num " << col_id << "----------------------------|" << std::endl;
           
           runfile << std::setprecision(3)  <<"POINT QUERY: minimum average time w/o index " 
-          << (times_by_type[col_id].wo_totaltime/(num_runs*num_queries)) << "avg num of datapage indices scanned " << (times_by_type[col_id].wo_total_pages_scanned/(num_runs*num_queries)) 
-          << "avg memory used in kB " << times_by_type[col_id].wo_mem_used
-          << "avg bytes read " << times_by_type[col_id].wo_read_bytes
-          << "avg bytes written " << times_by_type[col_id].wo_write_bytes
+          << (times_by_type[col_id].wo_totaltime/(num_runs*num_queries)) << std::endl
+          << " avg num of datapage indices scanned " << (times_by_type[col_id].wo_total_pages_scanned/(num_runs*num_queries)) << std::endl
+          << " avg memory used in kB " << times_by_type[col_id].wo_mem_used << std::endl
+          << " avg bytes read " << times_by_type[col_id].wo_read_bytes << std::endl
+          << " avg bytes written " << times_by_type[col_id].wo_write_bytes
           << std::endl;
           
           runfile << std::setprecision(3)  <<"POINT QUERY: minimum average time w index " 
-          << (times_by_type[col_id].w_totaltime/(num_runs*num_queries)) << "avg num of datapage indices scanned " << (times_by_type[col_id].w_total_pages_scanned/(num_runs*num_queries))
-          << "avg memory used in kB " << times_by_type[col_id].w_mem_used
-          << "avg bytes read " << times_by_type[col_id].w_read_bytes
-          << "avg bytes written " << times_by_type[col_id].w_write_bytes
+          << (times_by_type[col_id].w_totaltime/(num_runs*num_queries)) << std::endl
+          << " avg num of datapage indices scanned " << (times_by_type[col_id].w_total_pages_scanned/(num_runs*num_queries)) << std::endl
+          << " avg memory used in kB " << times_by_type[col_id].w_mem_used << std::endl
+          << " avg bytes read " << times_by_type[col_id].w_read_bytes << std::endl
+          << " avg bytes written " << times_by_type[col_id].w_write_bytes
           << std::endl;
           
           runfile << std::setprecision(3)  <<"POINT QUERY: minimum average time w index with binary without bloomfilter " 
-          << (times_by_type[col_id].b_totaltime/(num_runs*num_queries)) << "avg num of datapage indices scanned " << (times_by_type[col_id].b_total_pages_scanned/(num_runs*num_queries))
-          << "avg memory used in kB " << times_by_type[col_id].b_mem_used
-          << "avg bytes read " << times_by_type[col_id].b_read_bytes
-          << "avg bytes written " << times_by_type[col_id].b_write_bytes
+          << (times_by_type[col_id].b_totaltime/(num_runs*num_queries)) << std::endl
+          << " avg num of datapage indices scanned " << (times_by_type[col_id].b_total_pages_scanned/(num_runs*num_queries)) << std::endl
+          << " avg memory used in kB " << times_by_type[col_id].b_mem_used << std::endl
+          << " avg bytes read " << times_by_type[col_id].b_read_bytes << std::endl
+          << " avg bytes written " << times_by_type[col_id].b_write_bytes
           << std::endl;
         
           runfile << std::setprecision(3)  <<"POINT QUERY: minimum average time w index with binary with bloomfilter " 
-          << (times_by_type[col_id].w_blf_totaltime/(num_runs*num_queries)) << "avg num of datapage indices scanned " << (times_by_type[col_id].w_blf_total_pages_scanned/(num_runs*num_queries)) 
-          << "avg memory used in kB " << times_by_type[col_id].w_blf_mem_used
-          << "avg bytes read " << times_by_type[col_id].w_blf_read_bytes
-          << "avg bytes written " << times_by_type[col_id].w_blf_write_bytes
+          << (times_by_type[col_id].w_blf_totaltime/(num_runs*num_queries)) << std::endl
+          << " avg num of datapage indices scanned " << (times_by_type[col_id].w_blf_total_pages_scanned/(num_runs*num_queries)) << std::endl
+          << " avg memory used in kB " << times_by_type[col_id].w_blf_mem_used << std::endl
+          << " avg bytes read " << times_by_type[col_id].w_blf_read_bytes << std::endl
+          << " avg bytes written " << times_by_type[col_id].w_blf_write_bytes
           << std::endl;
 
           runfile << std::setprecision(3)  <<"POINT QUERY: minimum average time w index with binary with bloomfilter " 
-          << (times_by_type[col_id].w_pageblf_totaltime/(num_runs*num_queries)) << "avg num of datapage indices scanned " << (times_by_type[col_id].w_pageblf_total_pages_scanned/(num_runs*num_queries)) 
-          << "avg memory used in kB " << times_by_type[col_id].w_pageblf_mem_used
-          << "avg bytes read " << times_by_type[col_id].w_pageblf_read_bytes
-          << "avg bytes written " << times_by_type[col_id].w_pageblf_write_bytes
+          << (times_by_type[col_id].w_pageblf_totaltime/(num_runs*num_queries)) << std::endl
+          << " avg num of datapage indices scanned " << (times_by_type[col_id].w_pageblf_total_pages_scanned/(num_runs*num_queries)) << std::endl
+          << " avg memory used in kB " << times_by_type[col_id].w_pageblf_mem_used << std::endl
+          << " avg bytes read " << times_by_type[col_id].w_pageblf_read_bytes << std::endl
+          << " avg bytes written " << times_by_type[col_id].w_pageblf_write_bytes
           << std::endl;
             
           runfile<< "|----------------------------------------------------------------------------------|" << std::endl;
@@ -427,38 +432,43 @@ int parquet_reader(int argc,char** argv) {
           runfile<< "|----------------------------col_num " << col_id << "----------------------------|" << std::endl;
           
           runfile << std::setprecision(3)  <<"POINT QUERY: minimum average time w/o index " 
-          << (times_by_type[col_id].wo_totaltime/(num_runs*num_queries)) << "avg num of datapage indices scanned " << (times_by_type[col_id].wo_total_pages_scanned/(num_runs*num_queries)) 
-          << "avg memory used in kB " << times_by_type[col_id].wo_mem_used
-          << "avg bytes read " << times_by_type[col_id].wo_read_bytes
-          << "avg bytes written " << times_by_type[col_id].wo_write_bytes
+          << (times_by_type[col_id].wo_totaltime/(num_runs*num_queries)) << std::endl
+          << " avg num of datapage indices scanned " << (times_by_type[col_id].wo_total_pages_scanned/(num_runs*num_queries)) << std::endl
+          << " avg memory used in kB " << times_by_type[col_id].wo_mem_used << std::endl
+          << " avg bytes read " << times_by_type[col_id].wo_read_bytes << std::endl
+          << " avg bytes written " << times_by_type[col_id].wo_write_bytes
           << std::endl;
           
           runfile << std::setprecision(3)  <<"POINT QUERY: minimum average time w index " 
-          << (times_by_type[col_id].w_totaltime/(num_runs*num_queries)) << "avg num of datapage indices scanned " << (times_by_type[col_id].w_total_pages_scanned/(num_runs*num_queries))
-          << "avg memory used in kB " << times_by_type[col_id].w_mem_used
-          << "avg bytes read " << times_by_type[col_id].w_read_bytes
-          << "avg bytes written " << times_by_type[col_id].w_write_bytes
+          << (times_by_type[col_id].w_totaltime/(num_runs*num_queries)) << std::endl
+          << " avg num of datapage indices scanned " << (times_by_type[col_id].w_total_pages_scanned/(num_runs*num_queries)) << std::endl
+          << " avg memory used in kB " << times_by_type[col_id].w_mem_used << std::endl
+          << " avg bytes read " << times_by_type[col_id].w_read_bytes << std::endl
+          << " avg bytes written " << times_by_type[col_id].w_write_bytes
           << std::endl;
           
           runfile << std::setprecision(3)  <<"POINT QUERY: minimum average time w index with binary without bloomfilter " 
-          << (times_by_type[col_id].b_totaltime/(num_runs*num_queries)) << "avg num of datapage indices scanned " << (times_by_type[col_id].b_total_pages_scanned/(num_runs*num_queries))
-          << "avg memory used in kB " << times_by_type[col_id].b_mem_used
-          << "avg bytes read " << times_by_type[col_id].b_read_bytes
-          << "avg bytes written " << times_by_type[col_id].b_write_bytes
+          << (times_by_type[col_id].b_totaltime/(num_runs*num_queries)) << std::endl
+          << " avg num of datapage indices scanned " << (times_by_type[col_id].b_total_pages_scanned/(num_runs*num_queries)) << std::endl
+          << " avg memory used in kB " << times_by_type[col_id].b_mem_used << std::endl
+          << " avg bytes read " << times_by_type[col_id].b_read_bytes << std::endl
+          << " avg bytes written " << times_by_type[col_id].b_write_bytes
           << std::endl;
         
           runfile << std::setprecision(3)  <<"POINT QUERY: minimum average time w index with binary with bloomfilter " 
-          << (times_by_type[col_id].w_blf_totaltime/(num_runs*num_queries)) << "avg num of datapage indices scanned " << (times_by_type[col_id].w_blf_total_pages_scanned/(num_runs*num_queries)) 
-          << "avg memory used in kB " << times_by_type[col_id].w_blf_mem_used
-          << "avg bytes read " << times_by_type[col_id].w_blf_read_bytes
-          << "avg bytes written " << times_by_type[col_id].w_blf_write_bytes
+          << (times_by_type[col_id].w_blf_totaltime/(num_runs*num_queries)) << std::endl
+          << " avg num of datapage indices scanned " << (times_by_type[col_id].w_blf_total_pages_scanned/(num_runs*num_queries)) << std::endl
+          << " avg memory used in kB " << times_by_type[col_id].w_blf_mem_used << std::endl
+          << " avg bytes read " << times_by_type[col_id].w_blf_read_bytes << std::endl
+          << " avg bytes written " << times_by_type[col_id].w_blf_write_bytes
           << std::endl;
 
           runfile << std::setprecision(3)  <<"POINT QUERY: minimum average time w index with binary with bloomfilter " 
-          << (times_by_type[col_id].w_pageblf_totaltime/(num_runs*num_queries)) << "avg num of datapage indices scanned " << (times_by_type[col_id].w_pageblf_total_pages_scanned/(num_runs*num_queries)) 
-          << "avg memory used in kB " << times_by_type[col_id].w_pageblf_mem_used
-          << "avg bytes read " << times_by_type[col_id].w_pageblf_read_bytes
-          << "avg bytes written " << times_by_type[col_id].w_pageblf_write_bytes
+          << (times_by_type[col_id].w_pageblf_totaltime/(num_runs*num_queries)) << std::endl
+          << " avg num of datapage indices scanned " << (times_by_type[col_id].w_pageblf_total_pages_scanned/(num_runs*num_queries)) << std::endl
+          << " avg memory used in kB " << times_by_type[col_id].w_pageblf_mem_used << std::endl
+          << " avg bytes read " << times_by_type[col_id].w_pageblf_read_bytes << std::endl
+          << " avg bytes written " << times_by_type[col_id].w_pageblf_write_bytes
           << std::endl;
             
           runfile<< "|----------------------------------------------------------------------------------|" << std::endl;
