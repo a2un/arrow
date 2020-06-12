@@ -852,11 +852,10 @@ return_multiple getPredicate(std::shared_ptr<parquet::ColumnReader> cr,std::shar
             ss >> std::boolalpha >> b;
             void * predicate = static_cast<void*>(&b);
 
-            vals.column_reader = (with_index)?
-                      rg->ColumnWithIndex(col_id,predicate,page_index,PREDICATE_COL,row_index,cr->type(),binary_search, count_pages_scanned,
+            vals.column_reader = 
+                      rg->ColumnWithIndex(col_id,predicate,page_index,PREDICATE_COL,row_index,cr->type(),with_index, binary_search, count_pages_scanned,
                                             total_num_pages, last_first_row, with_bloom_filter,with_page_bf,
-                                            unsorted_min_index, unsorted_row_index):
-                      rg->Column(col_id);
+                                            unsorted_min_index, unsorted_row_index);
             vals.b = b;
             return vals;
           }
@@ -865,11 +864,10 @@ return_multiple getPredicate(std::shared_ptr<parquet::ColumnReader> cr,std::shar
             
             ss >> val;
             void * predicate = static_cast<void*>(&val);
-            vals.column_reader = (with_index)?
-                      rg->ColumnWithIndex(col_id,predicate,page_index,PREDICATE_COL,row_index,cr->type(),binary_search, count_pages_scanned,
+            vals.column_reader = 
+                      rg->ColumnWithIndex(col_id,predicate,page_index,PREDICATE_COL,row_index,cr->type(),with_index, binary_search, count_pages_scanned,
                                             total_num_pages, last_first_row, with_bloom_filter,with_page_bf,
-                                            unsorted_min_index, unsorted_row_index):
-                      rg->Column(col_id);
+                                            unsorted_min_index, unsorted_row_index);
             vals.p = val;
             return vals;
           }
@@ -878,11 +876,10 @@ return_multiple getPredicate(std::shared_ptr<parquet::ColumnReader> cr,std::shar
             
             ss >> val;
             void * predicate = static_cast<void*>(&val);
-            vals.column_reader = (with_index)?
-                      rg->ColumnWithIndex(col_id,predicate,page_index,PREDICATE_COL,row_index,cr->type(),binary_search, count_pages_scanned,
+            vals.column_reader = 
+                      rg->ColumnWithIndex(col_id,predicate,page_index,PREDICATE_COL,row_index,cr->type(),with_index, binary_search, count_pages_scanned,
                                             total_num_pages, last_first_row, with_bloom_filter,with_page_bf,
-                                            unsorted_min_index, unsorted_row_index):
-                      rg->Column(col_id);
+                                            unsorted_min_index, unsorted_row_index);
             vals.r = val;
             return vals;
           }
@@ -891,11 +888,10 @@ return_multiple getPredicate(std::shared_ptr<parquet::ColumnReader> cr,std::shar
             
             ss >> val;
             void * predicate = static_cast<void*>(&val);
-            vals.column_reader = (with_index)?
-                      rg->ColumnWithIndex(col_id,predicate,page_index,PREDICATE_COL,row_index,cr->type(),binary_search, count_pages_scanned,
+            vals.column_reader = 
+                      rg->ColumnWithIndex(col_id,predicate,page_index,PREDICATE_COL,row_index,cr->type(),with_index, binary_search, count_pages_scanned,
                                             total_num_pages, last_first_row, with_bloom_filter,with_page_bf,
-                                            unsorted_min_index, unsorted_row_index):
-                      rg->Column(col_id);
+                                            unsorted_min_index, unsorted_row_index);
             vals.e = val;
             return vals;
           }
@@ -904,11 +900,10 @@ return_multiple getPredicate(std::shared_ptr<parquet::ColumnReader> cr,std::shar
             
             ss >> val;
             void * predicate = static_cast<void*>(&val);
-            vals.column_reader = (with_index)?
-                      rg->ColumnWithIndex(col_id,predicate,page_index,PREDICATE_COL,row_index,cr->type(),binary_search, count_pages_scanned,
+            vals.column_reader = 
+                      rg->ColumnWithIndex(col_id,predicate,page_index,PREDICATE_COL,row_index,cr->type(),with_index, binary_search, count_pages_scanned,
                                             total_num_pages, last_first_row, with_bloom_filter,with_page_bf,
-                                            unsorted_min_index, unsorted_row_index):
-                      rg->Column(col_id);
+                                            unsorted_min_index, unsorted_row_index);
             vals.d = val;
             return vals;
           }
@@ -917,11 +912,10 @@ return_multiple getPredicate(std::shared_ptr<parquet::ColumnReader> cr,std::shar
             
             ss >> val;
             void * predicate = static_cast<void*>(&val);
-            vals.column_reader = (with_index)?
-                      rg->ColumnWithIndex(col_id,predicate,page_index,PREDICATE_COL,row_index,cr->type(),binary_search, count_pages_scanned,
+            vals.column_reader = 
+                      rg->ColumnWithIndex(col_id,predicate,page_index,PREDICATE_COL,row_index,cr->type(),with_index, binary_search, count_pages_scanned,
                                             total_num_pages, last_first_row, with_bloom_filter,with_page_bf,
-                                            unsorted_min_index, unsorted_row_index):
-                      rg->Column(col_id);
+                                            unsorted_min_index, unsorted_row_index);
             vals.i = val;
             return vals;
           }
@@ -929,11 +923,10 @@ return_multiple getPredicate(std::shared_ptr<parquet::ColumnReader> cr,std::shar
             char* val = predicate_val;
             
             void * predicate = static_cast<void*>(val);
-            vals.column_reader = (with_index)?
-                      rg->ColumnWithIndex(col_id,predicate,page_index,PREDICATE_COL,row_index,cr->type(),binary_search, count_pages_scanned,
+            vals.column_reader = 
+                      rg->ColumnWithIndex(col_id,predicate,page_index,PREDICATE_COL,row_index,cr->type(),with_index, binary_search, count_pages_scanned,
                                             total_num_pages, last_first_row, with_bloom_filter,with_page_bf,
-                                            unsorted_min_index, unsorted_row_index):
-                      rg->Column(col_id);
+                                            unsorted_min_index, unsorted_row_index);
             vals.c = val;
             return vals;
           }
@@ -941,11 +934,10 @@ return_multiple getPredicate(std::shared_ptr<parquet::ColumnReader> cr,std::shar
             char* val = predicate_val;
             
             void * predicate = static_cast<void*>(val);
-            vals.column_reader = (with_index)?
-                      rg->ColumnWithIndex(col_id,predicate,page_index,PREDICATE_COL,row_index,cr->type(),binary_search, count_pages_scanned,
+            vals.column_reader = 
+                      rg->ColumnWithIndex(col_id,predicate,page_index,PREDICATE_COL,row_index,cr->type(),with_index, binary_search, count_pages_scanned,
                                             total_num_pages, last_first_row, with_bloom_filter,with_page_bf,
-                                            unsorted_min_index, unsorted_row_index):
-                      rg->Column(col_id);
+                                            unsorted_min_index, unsorted_row_index);
             vals.a = val;
             return vals;
           }

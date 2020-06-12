@@ -82,19 +82,19 @@ std::unique_ptr<PageReader> RowGroupReader::GetColumnPageReader(int i) {
 
 
 std::unique_ptr<PageReader> RowGroupReader::GetColumnPageReaderWithIndex(int i,void* predicate, int64_t& min_index,
-                                            int predicate_col, int64_t& row_index,Type::type type_num, bool binary_search, int64_t& count_pages_scanned,
+                                            int predicate_col, int64_t& row_index,Type::type type_num, bool with_index, bool binary_search, int64_t& count_pages_scanned,
                                             int64_t& total_num_pages, int64_t& last_first_row, bool with_bloom_filter, bool with_page_bf,
                                             std::vector<int64_t>& unsorted_min_index, std::vector<int64_t>& unsorted_row_index) {
   DCHECK(i < metadata()->num_columns())
       << "The RowGroup only has " << metadata()->num_columns()
       << "columns, requested column: " << i;
-  return contents_->GetColumnPageReaderWithIndex(i,predicate, min_index, predicate_col, row_index,type_num, binary_search, count_pages_scanned,
+  return contents_->GetColumnPageReaderWithIndex(i,predicate, min_index, predicate_col, row_index,type_num, with_index, binary_search, count_pages_scanned,
                                             total_num_pages, last_first_row, with_bloom_filter, with_page_bf,
                                             unsorted_min_index, unsorted_row_index);
 }
 
 std::shared_ptr<ColumnReader> RowGroupReader::ColumnWithIndex(int i,void* predicate, int64_t& min_index, int predicate_col, 
-                                  int64_t& row_index,Type::type type_num, bool binary_search, int64_t& count_pages_scanned,
+                                  int64_t& row_index,Type::type type_num, bool with_index, bool binary_search, int64_t& count_pages_scanned,
                                             int64_t& total_num_pages, int64_t& last_first_row, bool with_bloom_filter, bool with_page_bf,
                                             std::vector<int64_t>& unsorted_min_index, std::vector<int64_t>& unsorted_row_index) {
   DCHECK(i < metadata()->num_columns())
@@ -102,7 +102,7 @@ std::shared_ptr<ColumnReader> RowGroupReader::ColumnWithIndex(int i,void* predic
       << "columns, requested column: " << i;
   const ColumnDescriptor* descr = metadata()->schema()->Column(i);
 
-  std::unique_ptr<PageReader> page_reader = contents_->GetColumnPageReaderWithIndex(i,predicate, min_index, predicate_col, row_index,type_num, binary_search, count_pages_scanned,
+  std::unique_ptr<PageReader> page_reader = contents_->GetColumnPageReaderWithIndex(i,predicate, min_index, predicate_col, row_index,type_num, with_index, binary_search, count_pages_scanned,
                                             total_num_pages, last_first_row, with_bloom_filter, with_page_bf,
                                             unsorted_min_index, unsorted_row_index);
   return ColumnReader::Make(
@@ -1062,7 +1062,7 @@ class SerializedRowGroup : public RowGroupReader::Contents {
   }
 
   std::unique_ptr<PageReader> GetColumnPageReaderWithIndex(int column_index, void* predicate, int64_t& min_index, 
-                              int predicate_col, int64_t& row_index,Type::type type_num, bool with_binarysearch, int64_t& count_pages_scanned,
+                              int predicate_col, int64_t& row_index,Type::type type_num, bool with_index, bool with_binarysearch, int64_t& count_pages_scanned,
                               int64_t& total_num_pages, int64_t& last_first_row, bool with_bloom_filter, bool with_page_bf,
                               std::vector<int64_t>& unsorted_min_index, std::vector<int64_t>& unsorted_row_index) {
     // Read column chunk from the file
