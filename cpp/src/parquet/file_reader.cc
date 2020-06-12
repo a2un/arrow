@@ -976,7 +976,7 @@ class SerializedRowGroup : public RowGroupReader::Contents {
 
 
   void GetPageWithoutIndex(std::shared_ptr<ArrowInputFile>& source_, ReaderProperties& properties_, void* predicate, 
-                    int64_t& min_index,int64_t& row_index, Type::type type_num,
+                    int64_t& min_index,int64_t& row_index, parquet::format::OffsetIndex offset_index, Type::type type_num,
                     bool with_binarysearch, int64_t& count_pages_scanned,
                     parquet::BlockSplitBloomFilter& blf, bool with_bloom_filter, bool with_page_bf) const {
       
@@ -1073,7 +1073,10 @@ class SerializedRowGroup : public RowGroupReader::Contents {
          }
       }
       
-      if (with_page_bf) {}
+      if (with_page_bf)
+         page_bloom_filter_has_value(source_,properties_,predicate, offset_index,min_index,type_num, row_index);
+      else 
+         row_index = offset_index.page_locations[min_index].first_row_index;
       
   }
 
@@ -1206,9 +1209,11 @@ class SerializedRowGroup : public RowGroupReader::Contents {
            GetPageWithRowIndex(min_index, offset_index, row_index);
     }
     else{
+      parquet::format::OffsetIndex offset_index;
       BlockSplitBloomFilter blf;
+      DeserializeOffsetIndex(*reinterpret_cast<ColumnChunkMetaData*>(col.get()),&offset_index, source_, properties_);
       DeserializeBloomFilter(*reinterpret_cast<ColumnChunkMetaData*>(col.get()),blf,source_,properties_);
-      GetPageWithoutIndex(source_, properties_, predicate, min_index,row_index, type_num, with_binarysearch, count_pages_scanned, blf, with_bloom_filter, with_page_bf);    
+      GetPageWithoutIndex(source_, properties_, predicate, min_index,row_index, offset_index,type_num, with_binarysearch, count_pages_scanned, blf, with_bloom_filter, with_page_bf);    
     }
     
     // PARQUET-816 workaround for old files created by older parquet-mr
