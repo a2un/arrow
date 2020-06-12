@@ -815,6 +815,7 @@ class SerializedRowGroup : public RowGroupReader::Contents {
       else 
          row_index = offset_index.page_locations[min_index].first_row_index;
   }
+  
 
   void GetPageIndex(std::shared_ptr<ArrowInputFile>& source_, ReaderProperties& properties_, void* predicate, 
                     std::vector<int64_t>& unsorted_min_index, std::vector<int64_t>& unsorted_row_index,
@@ -974,6 +975,108 @@ class SerializedRowGroup : public RowGroupReader::Contents {
   }
 
 
+  void GetPageWithoutIndex(std::shared_ptr<ArrowInputFile>& source_, ReaderProperties& properties_, void* predicate, 
+                    int64_t& min_index,int64_t& row_index, Type::type type_num,
+                    bool with_binarysearch, int64_t& count_pages_scanned,
+                    parquet::BlockSplitBloomFilter& blf, bool with_bloom_filter, bool with_page_bf) const {
+      
+      switch(type_num) {
+         case Type::BOOLEAN:{
+           // doesn't make sense for bool
+           break;
+         }
+         case Type::INT32:{
+              int32_t v = *((int32_t*) predicate);
+              
+              if (with_bloom_filter && !blf.FindHash(blf.Hash(v))) {
+                 row_index = -1; return;
+              }
+
+              
+           break;
+         }
+         case Type::INT64:
+         {
+             int64_t v = *((int64_t*) predicate);
+             if (with_bloom_filter && !blf.FindHash(blf.Hash(v))) {
+                 row_index = -1; return;
+             }
+             
+             
+            break;
+         }
+         case Type::INT96:
+         {
+             uint32_t v = *((uint32_t*) predicate);
+              
+           break;
+         }
+         case Type::FLOAT:
+         {
+             float v = *((float*) predicate);
+             if (with_bloom_filter && !blf.FindHash(blf.Hash((float)(int64_t)v))) {
+                 row_index = -1; return;
+             }
+             
+             
+           break;
+         }
+         case Type::DOUBLE:
+         {
+             double v = *((double*) predicate);
+             if (with_bloom_filter && !blf.FindHash(blf.Hash((double)(int64_t)v))) {
+                 row_index = -1; return;
+             }
+             
+             
+           break;
+         }
+         case Type::BYTE_ARRAY:
+         {
+             char* v = (char*) predicate;
+             char* p = (char*) predicate;
+             // remove leading zeroes in the predicate, if present.
+             int checkzero = 0;
+             while ( p [checkzero] == '0') checkzero++; 
+             p = (p + checkzero);
+             char dest[FIXED_LENGTH];
+             for ( uint32_t i = 0; i < (FIXED_LENGTH-strlen(p));i++) dest[i] = '0';
+             for ( uint32_t i = (FIXED_LENGTH-strlen(p)); i < FIXED_LENGTH;i++) dest[i] = p[i-(FIXED_LENGTH-strlen(p))];
+             dest[FIXED_LENGTH] = '\0';
+             std::string test(dest);
+             ByteArray pba(test.size(),reinterpret_cast<const uint8_t*>(test.c_str()));
+             if (with_bloom_filter && !blf.FindHash(blf.Hash(&pba))) {
+                 row_index = -1; return;
+             }
+
+             std::string str(v);
+             
+           break;
+         }
+         case Type::FIXED_LEN_BYTE_ARRAY:
+         {
+             char* v = (char*) predicate;
+
+             uint8_t ptr = *v;
+             ByteArray pba((uint32_t)strlen(v),&ptr);
+             if (with_bloom_filter && !blf.FindHash(blf.Hash(&pba))) {
+                 row_index = -1; return;
+             }
+
+             std::string str(v);
+             
+           break;
+         }
+         default:
+         {
+           parquet::ParquetException::NYI("type reader not implemented");
+         }
+      }
+      
+      if (with_page_bf) {}
+      
+  }
+
   void GetPageWithRowIndex(int64_t& page_index, parquet::format::OffsetIndex offset_index, int64_t& row_index) const {
       
       for (uint64_t page_index = 0;page_index < offset_index.page_locations.size() && 
@@ -1101,6 +1204,11 @@ class SerializedRowGroup : public RowGroupReader::Contents {
         }
         else 
            GetPageWithRowIndex(min_index, offset_index, row_index);
+    }
+    else{
+      BlockSplitBloomFilter blf;
+      DeserializeBloomFilter(*reinterpret_cast<ColumnChunkMetaData*>(col.get()),blf,source_,properties_);
+      GetPageWithoutIndex(source_, properties_, predicate, min_index,row_index, type_num, with_binarysearch, count_pages_scanned, blf, with_bloom_filter, with_page_bf);    
     }
     
     // PARQUET-816 workaround for old files created by older parquet-mr
