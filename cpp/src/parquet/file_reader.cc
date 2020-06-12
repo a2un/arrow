@@ -1075,8 +1075,6 @@ class SerializedRowGroup : public RowGroupReader::Contents {
       
       if (with_page_bf)
          page_bloom_filter_has_value(source_,properties_,predicate, offset_index,min_index,type_num, row_index);
-      else 
-         row_index = offset_index.page_locations[min_index].first_row_index;
       
   }
 
