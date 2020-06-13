@@ -1184,7 +1184,7 @@ class SerializedRowGroup : public RowGroupReader::Contents {
     
     bool has_page_index = HasPageIndex((reinterpret_cast<ColumnChunkMetaData*>(col.get())));
 
-    if ( has_page_index ) {
+    if ( has_page_index && with_index ) {
         parquet::format::ColumnIndex col_index;
         parquet::format::OffsetIndex offset_index;
         BlockSplitBloomFilter blf;
