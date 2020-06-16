@@ -616,7 +616,7 @@ trun run_for_one_predicate(std::ofstream& runfile,int num_columns,int num_row_gr
         runfile << "\n time for predicate one pass with bloom filter: "  << std::endl;
         for(int t  =0 ; t< num_runs; t++){
             start_time = clock();
-          first_pass_for_predicate_only(runfile, row_group_reader,col_id,num_columns,predicate_val,true,equal_to, !binary_search, !with_bloom_filter,!with_page_bf);
+          first_pass_for_predicate_only(runfile, row_group_reader,col_id,num_columns,predicate_val,true,equal_to, !binary_search, with_bloom_filter,!with_page_bf);
           end_time = clock();
           
             float time_elapsed = ((float) (end_time-start_time))/CLOCKS_PER_SEC;
