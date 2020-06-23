@@ -428,7 +428,7 @@ Status FileOpenReadable(const PlatformFilename& file_name, int* fd) {
                            _O_RDONLY | _O_BINARY | _O_NOINHERIT, _SH_DENYNO, _S_IREAD);
   ret = *fd;
 #else
-  ret = *fd = open(file_name.ToNative().c_str(), O_RDONLY);
+  ret = *fd = open(file_name.ToNative().c_str(), O_RDONLY, O_DIRECT);
   errno_actual = errno;
 
   if (ret >= 0) {
