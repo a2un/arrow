@@ -367,7 +367,7 @@ class SerializedRowGroup : public RowGroupReader::Contents {
                     int64_t& min_index,int64_t& row_index, parquet::format::ColumnIndex col_index, 
                     parquet::format::OffsetIndex offset_index,Type::type type_num, bool sorted, 
                     bool with_binarysearch, int64_t& count_pages_scanned,
-                    parquet::BlockSplitBloomFilter& blf, bool with_bloom_filter, bool with_page_bf) const {
+                    bool with_bloom_filter, bool with_page_bf) const {
       
       switch(type_num) {
          case Type::BOOLEAN:{
@@ -377,9 +377,7 @@ class SerializedRowGroup : public RowGroupReader::Contents {
          case Type::INT32:{
               int32_t v = *((int32_t*) predicate);
               
-              if (with_bloom_filter && !blf.FindHash(blf.Hash(v))) {
-                 row_index = -1; return;
-              }
+              
 
               if(sorted && with_binarysearch){
                   if(col_index.min_values.size() >= 2){
@@ -436,9 +434,7 @@ class SerializedRowGroup : public RowGroupReader::Contents {
          case Type::INT64:
          {
              int64_t v = *((int64_t*) predicate);
-             if (with_bloom_filter && !blf.FindHash(blf.Hash(v))) {
-                 row_index = -1; return;
-             }
+             
              
              if(sorted && with_binarysearch){
                   if(col_index.min_values.size() >= 2){
@@ -549,9 +545,7 @@ class SerializedRowGroup : public RowGroupReader::Contents {
          case Type::FLOAT:
          {
              float v = *((float*) predicate);
-             if (with_bloom_filter && !blf.FindHash(blf.Hash((float)(int64_t)v))) {
-                 row_index = -1; return;
-             }
+             
              
              if(sorted && with_binarysearch){
                   if(col_index.min_values.size() >= 2){
@@ -611,9 +605,7 @@ class SerializedRowGroup : public RowGroupReader::Contents {
          case Type::DOUBLE:
          {
              double v = *((double*) predicate);
-             if (with_bloom_filter && !blf.FindHash(blf.Hash((double)(int64_t)v))) {
-                 row_index = -1; return;
-             }
+             
              
              if(sorted && with_binarysearch){
                   if(col_index.min_values.size() >= 2){
@@ -684,9 +676,7 @@ class SerializedRowGroup : public RowGroupReader::Contents {
              dest[FIXED_LENGTH] = '\0';
              std::string test(dest);
              ByteArray pba(test.size(),reinterpret_cast<const uint8_t*>(test.c_str()));
-             if (with_bloom_filter && !blf.FindHash(blf.Hash(&pba))) {
-                 row_index = -1; return;
-             }
+             
 
              std::string str(v);
              if(sorted && with_binarysearch){
@@ -749,9 +739,7 @@ class SerializedRowGroup : public RowGroupReader::Contents {
 
              uint8_t ptr = *v;
              ByteArray pba((uint32_t)strlen(v),&ptr);
-             if (with_bloom_filter && !blf.FindHash(blf.Hash(&pba))) {
-                 row_index = -1; return;
-             }
+             
 
              std::string str(v);
              if(sorted && with_binarysearch){
@@ -821,7 +809,7 @@ class SerializedRowGroup : public RowGroupReader::Contents {
                     std::vector<int64_t>& unsorted_min_index, std::vector<int64_t>& unsorted_row_index,
                     parquet::format::ColumnIndex col_index, parquet::format::OffsetIndex offset_index,
                     Type::type type_num, bool sorted, bool with_binarysearch, int64_t& count_pages_scanned,
-                    parquet::BlockSplitBloomFilter& blf, bool with_bloom_filter, bool with_page_bf) const {
+                    bool with_bloom_filter, bool with_page_bf) const {
       
       switch(type_num) {
          case Type::BOOLEAN:{
@@ -830,10 +818,6 @@ class SerializedRowGroup : public RowGroupReader::Contents {
          }
          case Type::INT32:{
               int32_t v = *((int32_t*) predicate);
-              
-              if (with_bloom_filter && !blf.FindHash(blf.Hash(v))) {
-                 return;
-              }
               
               for (uint64_t itemindex = 0;itemindex < offset_index.page_locations.size();itemindex++) {
                 int32_t* page_min = (int32_t*)(void *)col_index.min_values[itemindex].c_str();
@@ -850,10 +834,6 @@ class SerializedRowGroup : public RowGroupReader::Contents {
          case Type::INT64:
          {
              int64_t v = *((int64_t*) predicate);
-             if (with_bloom_filter && !blf.FindHash(blf.Hash(v))) {
-                 return;
-             }
-             
              
              for (uint64_t itemindex = 0;itemindex < offset_index.page_locations.size();itemindex++) {
                 int64_t* page_min = (int64_t*)(void *)col_index.min_values[itemindex].c_str();
@@ -875,10 +855,6 @@ class SerializedRowGroup : public RowGroupReader::Contents {
          case Type::FLOAT:
          {
              float v = *((float*) predicate);
-             if (with_bloom_filter && !blf.FindHash(blf.Hash((float)(int64_t)v))) {
-                 return;
-             }
-             
              
              for (uint64_t itemindex = 0;itemindex < offset_index.page_locations.size();itemindex++) {
                 float* page_min = (float*)(void *)col_index.min_values[itemindex].c_str();
@@ -901,9 +877,6 @@ class SerializedRowGroup : public RowGroupReader::Contents {
          case Type::DOUBLE:
          {
              double v = *((double*) predicate);
-             if (with_bloom_filter && !blf.FindHash(blf.Hash((double)(int64_t)v))) {
-                 return;
-             }
              
              
               for (uint64_t itemindex = 0;itemindex < offset_index.page_locations.size();itemindex++) {
@@ -934,9 +907,6 @@ class SerializedRowGroup : public RowGroupReader::Contents {
              dest[FIXED_LENGTH] = '\0';
              std::string test(dest);
              ByteArray pba(test.size(),reinterpret_cast<const uint8_t*>(test.c_str()));
-             if (with_bloom_filter && !blf.FindHash(blf.Hash(&pba))) {
-                return;
-             }
 
              std::string str(v);
              
@@ -976,7 +946,7 @@ class SerializedRowGroup : public RowGroupReader::Contents {
 
 
   void GetPageWithoutIndex(std::shared_ptr<ArrowInputFile>& source_, ReaderProperties& properties_, void* predicate, 
-                    int64_t& min_index,int64_t& row_index, parquet::format::OffsetIndex offset_index, Type::type type_num,
+                    int64_t& min_index,int64_t& row_index, Type::type type_num,
                     bool with_binarysearch, int64_t& count_pages_scanned,
                     parquet::BlockSplitBloomFilter& blf, bool with_bloom_filter, bool with_page_bf) const {
       
@@ -1073,8 +1043,8 @@ class SerializedRowGroup : public RowGroupReader::Contents {
          }
       }
       
-      if (with_page_bf)
-         page_bloom_filter_has_value(source_,properties_,predicate, offset_index,min_index,type_num, row_index);
+    /*if (with_page_bf)
+         page_bloom_filter_has_value(source_,properties_,predicate, offset_index,min_index,type_num, row_index);*/
       
   }
 
@@ -1182,38 +1152,35 @@ class SerializedRowGroup : public RowGroupReader::Contents {
 
     int64_t col_length = col->total_compressed_size();
     
-    bool has_page_index = HasPageIndex((reinterpret_cast<ColumnChunkMetaData*>(col.get())));
+    if ( with_bloom_filter ) {
+      BlockSplitBloomFilter blf;
+      DeserializeBloomFilter(*reinterpret_cast<ColumnChunkMetaData*>(col.get()),blf,source_,properties_);
+      GetPageWithoutIndex(source_, properties_, predicate, min_index,row_index,type_num, with_binarysearch, count_pages_scanned, blf, with_bloom_filter, with_page_bf);    
+    }
 
-    if ( has_page_index && with_index ) {
+    if (row_index != -1 && with_index ){
+      bool has_page_index = HasPageIndex((reinterpret_cast<ColumnChunkMetaData*>(col.get())));
+      if ( has_page_index ) {
         parquet::format::ColumnIndex col_index;
         parquet::format::OffsetIndex offset_index;
-        BlockSplitBloomFilter blf;
         DeserializeColumnIndex(*reinterpret_cast<ColumnChunkMetaData*>(col.get()),&col_index, source_, properties_);
         DeserializeOffsetIndex(*reinterpret_cast<ColumnChunkMetaData*>(col.get()),&offset_index, source_, properties_);
-        DeserializeBloomFilter(*reinterpret_cast<ColumnChunkMetaData*>(col.get()),blf,source_,properties_);
         total_num_pages = offset_index.page_locations.size();
         last_first_row = offset_index.page_locations[offset_index.page_locations.size()-1].first_row_index;
         if ( predicate_col == column_index ) {
             bool sorted = isSorted(col_index,offset_index,type_num);
             if ( sorted )
-              GetPageIndex(source_, properties_, predicate, min_index,row_index, col_index,offset_index,type_num,sorted, with_binarysearch, count_pages_scanned, blf, with_bloom_filter, with_page_bf);    
+              GetPageIndex(source_, properties_, predicate, min_index,row_index, col_index,offset_index,type_num,sorted, with_binarysearch, count_pages_scanned, with_bloom_filter, with_page_bf);    
             else
             {
-              GetPageIndex(source_, properties_, predicate, unsorted_min_index,unsorted_row_index, col_index,offset_index,type_num,sorted, with_binarysearch, count_pages_scanned, blf, with_bloom_filter, with_page_bf);    
+              GetPageIndex(source_, properties_, predicate, unsorted_min_index,unsorted_row_index, col_index,offset_index,type_num,sorted, with_binarysearch, count_pages_scanned, with_bloom_filter, with_page_bf);    
             }
             
         }
         else 
            GetPageWithRowIndex(min_index, offset_index, row_index);
+      }
     }
-    else{
-      parquet::format::OffsetIndex offset_index;
-      BlockSplitBloomFilter blf;
-      DeserializeOffsetIndex(*reinterpret_cast<ColumnChunkMetaData*>(col.get()),&offset_index, source_, properties_);
-      DeserializeBloomFilter(*reinterpret_cast<ColumnChunkMetaData*>(col.get()),blf,source_,properties_);
-      GetPageWithoutIndex(source_, properties_, predicate, min_index,row_index, offset_index,type_num, with_binarysearch, count_pages_scanned, blf, with_bloom_filter, with_page_bf);    
-    }
-    
     // PARQUET-816 workaround for old files created by older parquet-mr
     const ApplicationVersion& version = file_metadata_->writer_version();
     if (version.VersionLt(ApplicationVersion::PARQUET_816_FIXED_VERSION())) {
