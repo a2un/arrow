@@ -454,7 +454,7 @@ class BufferedPageWriter : public PageWriter {
   }
 
   void WritePageBloomFilter(BlockSplitBloomFilter& blf, int64_t& f_pos) {
-     pager_->WritePageBloomFilter(blf, f_pos);
+     //pager_->WritePageBloomFilter(blf, f_pos);
   }
 
   void Compress(const Buffer& src_buffer, ResizableBuffer* dest_buffer) override {
@@ -536,8 +536,8 @@ class ColumnWriterImpl {
 
   void WritePageBloomFilter(BlockSplitBloomFilter& bl_page_filter) {
      int64_t f_pos;
-     pager_->WritePageBloomFilter(bl_page_filter, f_pos);
-     AddBloomFilterOffsetToOffsetIndex(f_pos);
+     //pager_->WritePageBloomFilter(bl_page_filter, f_pos);
+     //AddBloomFilterOffsetToOffsetIndex(f_pos);
      
   }
 
@@ -1033,7 +1033,7 @@ class TypedColumnWriterImpl : public ColumnWriterImpl, public TypedColumnWriter<
 
   int64_t CloseWithIndex() override { 
     int64_t total_bytes_written = ColumnWriterImpl::CloseWithIndex(); 
-    WritePageBloomFilter();
+    //WritePageBloomFilter();
     return total_bytes_written;
   }
 
@@ -1280,7 +1280,7 @@ int64_t TypedColumnWriterImpl<DType>::WriteMiniBatch(int64_t num_values,
   }
 
   WriteValues(values_to_write, values);
-  AppendValuesToPageBloomFilter(values_to_write,values);
+  //AppendValuesToPageBloomFilter(values_to_write,values);
 
   if (page_statistics_ != nullptr) {
     page_statistics_->Update(values, values_to_write, num_values - values_to_write);
@@ -1290,7 +1290,7 @@ int64_t TypedColumnWriterImpl<DType>::WriteMiniBatch(int64_t num_values,
   num_buffered_encoded_values_ += values_to_write;
 
   if (current_encoder_->EstimatedDataEncodedSize() >= properties_->data_pagesize()) {
-    NewPageBloomFilter();
+    //NewPageBloomFilter();
     
     if (!with_index)
        AddDataPage();
@@ -1388,7 +1388,7 @@ void TypedColumnWriterImpl<DType>::WriteBatch(int64_t num_values,
   // pagesize limit
   int64_t write_batch_size = properties_->write_batch_size();
 
-  InitializeBloomF();
+  //InitializeBloomF();
 
   int num_batches = static_cast<int>(num_values / write_batch_size);
   int64_t num_remaining = num_values % write_batch_size;

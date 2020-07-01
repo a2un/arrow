@@ -84,13 +84,17 @@ std::unique_ptr<PageReader> RowGroupReader::GetColumnPageReader(int i) {
 std::unique_ptr<PageReader> RowGroupReader::GetColumnPageReaderWithIndex(int i,void* predicate, int64_t& min_index,
                                             int predicate_col, int64_t& row_index,Type::type type_num, bool with_index, bool binary_search, int64_t& count_pages_scanned,
                                             int64_t& total_num_pages, int64_t& last_first_row, bool with_bloom_filter, bool with_page_bf,
-                                            std::vector<int64_t>& unsorted_min_index, std::vector<int64_t>& unsorted_row_index) {
+                                            std::vector<int64_t>& unsorted_min_index, std::vector<int64_t>& unsorted_row_index,
+                                            parquet::format::ColumnIndex& col_index, parquet::format::OffsetIndex& offset_index, BlockSplitBloomFilter& blf,
+                                            bool& first_time_blf,bool& first_time_index,
+                                            float& blf_load_time, float& index_load_time) {
   DCHECK(i < metadata()->num_columns())
       << "The RowGroup only has " << metadata()->num_columns()
       << "columns, requested column: " << i;
   return contents_->GetColumnPageReaderWithIndex(i,predicate, min_index, predicate_col, row_index,type_num, with_index, binary_search, count_pages_scanned,
                                             total_num_pages, last_first_row, with_bloom_filter, with_page_bf,
-                                            unsorted_min_index, unsorted_row_index);
+                                            unsorted_min_index, unsorted_row_index, col_index, offset_index, blf, first_time_blf,first_time_index,
+                                            blf_load_time, index_load_time);
 }
 
 std::shared_ptr<ColumnReader> RowGroupReader::ColumnWithIndex(int i,void* predicate, int64_t& min_index, int predicate_col, 
@@ -104,7 +108,8 @@ std::shared_ptr<ColumnReader> RowGroupReader::ColumnWithIndex(int i,void* predic
 
   std::unique_ptr<PageReader> page_reader = contents_->GetColumnPageReaderWithIndex(i,predicate, min_index, predicate_col, row_index,type_num, with_index, binary_search, count_pages_scanned,
                                             total_num_pages, last_first_row, with_bloom_filter, with_page_bf,
-                                            unsorted_min_index, unsorted_row_index);
+                                            unsorted_min_index, unsorted_row_index, col_index,offset_index,blf,first_time_blf,first_time_index,
+                                            blf_load_time, index_load_time);
   return ColumnReader::Make(
       descr, std::move(page_reader),
       const_cast<ReaderProperties*>(contents_->properties())->memory_pool());
@@ -1138,7 +1143,10 @@ class SerializedRowGroup : public RowGroupReader::Contents {
   std::unique_ptr<PageReader> GetColumnPageReaderWithIndex(int column_index, void* predicate, int64_t& min_index, 
                               int predicate_col, int64_t& row_index,Type::type type_num, bool with_index, bool with_binarysearch, int64_t& count_pages_scanned,
                               int64_t& total_num_pages, int64_t& last_first_row, bool with_bloom_filter, bool with_page_bf,
-                              std::vector<int64_t>& unsorted_min_index, std::vector<int64_t>& unsorted_row_index) {
+                              std::vector<int64_t>& unsorted_min_index, std::vector<int64_t>& unsorted_row_index,
+                              parquet::format::ColumnIndex& col_index, parquet::format::OffsetIndex& offset_index, BlockSplitBloomFilter& blf,
+                              bool& first_time_blf,bool& first_time_index,
+                              float& blf_load_time, float& index_load_time) {
     // Read column chunk from the file
     auto col = row_group_metadata_->ColumnChunk(column_index);
 
@@ -1153,18 +1161,31 @@ class SerializedRowGroup : public RowGroupReader::Contents {
     int64_t col_length = col->total_compressed_size();
     
     if ( with_bloom_filter ) {
-      BlockSplitBloomFilter blf;
-      DeserializeBloomFilter(*reinterpret_cast<ColumnChunkMetaData*>(col.get()),blf,source_,properties_);
+
+      if (first_time_blf) {
+        float start_time = clock();
+        DeserializeBloomFilter(*reinterpret_cast<ColumnChunkMetaData*>(col.get()),blf,source_,properties_);
+        float end_time = clock();
+        first_time_blf = false;
+        blf_load_time = ((float) (end_time-start_time))/CLOCKS_PER_SEC;
+      }
+
       GetPageWithoutIndex(source_, properties_, predicate, min_index,row_index,type_num, with_binarysearch, count_pages_scanned, blf, with_bloom_filter, with_page_bf);    
     }
 
     if (row_index != -1 && with_index ){
       bool has_page_index = HasPageIndex((reinterpret_cast<ColumnChunkMetaData*>(col.get())));
       if ( has_page_index ) {
-        parquet::format::ColumnIndex col_index;
-        parquet::format::OffsetIndex offset_index;
-        DeserializeColumnIndex(*reinterpret_cast<ColumnChunkMetaData*>(col.get()),&col_index, source_, properties_);
-        DeserializeOffsetIndex(*reinterpret_cast<ColumnChunkMetaData*>(col.get()),&offset_index, source_, properties_);
+        
+        if (first_time_index) {
+           float start_time = clock();
+           DeserializeColumnIndex(*reinterpret_cast<ColumnChunkMetaData*>(col.get()),&col_index, source_, properties_);
+           DeserializeOffsetIndex(*reinterpret_cast<ColumnChunkMetaData*>(col.get()),&offset_index, source_, properties_);
+           float end_time = clock();
+           index_load_time = ((float) (end_time-start_time))/CLOCKS_PER_SEC;
+           first_time_index = false;
+        }
+
         total_num_pages = offset_index.page_locations.size();
         last_first_row = offset_index.page_locations[offset_index.page_locations.size()-1].first_row_index;
         if ( predicate_col == column_index ) {

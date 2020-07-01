@@ -218,6 +218,8 @@ typedef struct time_to_run{
        float w_pageblf_mem_used = 0.0;
        float w_pageblf_read_bytes = 0.0;
        float w_pageblf_write_bytes = 0.0;
+       float blf_load_time = 0.0;
+       float index_load_time = 0.0;
   } trun;
 
 int parquet_writer(int argc, char** argv);
@@ -234,7 +236,7 @@ bool printVal(std::ofstream& runfile, std::shared_ptr<parquet::ColumnReader>colu
                bool checkpredicate,int equal_to);
 bool printRange(std::shared_ptr<parquet::ColumnReader>column_reader, parquet::ColumnReader* int64_reader,int ind,return_multiple vals_min,return_multiple vals_max,int64_t& row_counter);
 
-trun run_for_one_predicate(std::ofstream& runfile, int num_columns,int num_row_groups, std::unique_ptr<parquet::ParquetFileReader>& parquet_reader, int col_id,char** argv,
+trun run_for_one_predicate(std::ofstream& runfile, int num_columns,std::shared_ptr<parquet::RowGroupReader>& row_group_reader, std::unique_ptr<parquet::ParquetFileReader>& parquet_reader, int col_id,char** argv,
                            int predicate_index, int equal_to, bool binary_search, bool with_bloom_filter, bool with_page_bf);
 
 int64_t first_pass_for_predicate_only(std::ofstream& runfile,std::shared_ptr<parquet::RowGroupReader> rg,int predicate_column_number,int num_columns, char* predicate,
@@ -326,10 +328,16 @@ int parquet_reader(int argc,char** argv) {
           times_by_type[col_id].wo_total_pages_scanned = 0.0;
           times_by_type[col_id].w_total_pages_scanned = 0.0;
           times_by_type[col_id].b_total_pages_scanned = 0.0;
+          times_by_type[col_id].blf_load_time = 0.0;
+          times_by_type[col_id].index_load_time = 0.0;
         }
         
+        // over each rowgroup
+        for ( int r = 0; r < num_row_groups; r++) {
         // for each column so many queries run so many times.
         for ( int col_id =0; col_id < num_columns; col_id++){
+            //re-initialize column index, offset index and bloomfilters for each column
+            std::shared_ptr<parquet::RowGroupReader> row_group_reader = parquet_reader->RowGroup(r);
          // for that column so many runs
           for(int i=0; i < num_runs; i++){    
             int predicateindex = 0;
@@ -343,7 +351,7 @@ int parquet_reader(int argc,char** argv) {
               predicates[predicateindex] = predicate_val;
             
               runfile  << " run number " << i << "-- Query number " << predicateindex << "-- col_num " << col_id  << " predicate: " << predicates[predicateindex] << std::endl;
-              trun avgtime = run_for_one_predicate(runfile, num_columns,num_row_groups,parquet_reader,col_id,predicates,predicateindex,0,true,true,true);
+              trun avgtime = run_for_one_predicate(runfile, num_columns,row_group_reader,parquet_reader,col_id,predicates,predicateindex,0,true,true,true);
               
               times_by_type[col_id].wo_totaltime += avgtime.wo_totaltime;
               times_by_type[col_id].w_totaltime += avgtime.w_totaltime;
@@ -374,7 +382,9 @@ int parquet_reader(int argc,char** argv) {
               times_by_type[col_id].b_write_bytes += avgtime.b_write_bytes;
               times_by_type[col_id].w_blf_write_bytes += avgtime.w_blf_write_bytes;
               // times_by_type[col_id].w_pageblf_write_bytes += avgtime.w_pageblf_write_bytes;
-              
+              times_by_type[col_id].blf_load_time = row_group_reader->GetBLFLoadTime();
+              times_by_type[col_id].index_load_time = row_group_reader->GetIndexLoadTime();
+
               predicateindex++;
             }
           }
@@ -426,6 +436,7 @@ int parquet_reader(int argc,char** argv) {
           runfile<< "|----------------------------------------------------------------------------------|" << std::endl;
 
         }
+        }
          
         runfile << "############################### -- POINT QUERY RUN TIME RESULTS FINAL  ################################" << std::endl;
         for ( int col_id =0; col_id < num_columns; col_id++){
@@ -445,6 +456,7 @@ int parquet_reader(int argc,char** argv) {
           << " avg memory used in kB " << times_by_type[col_id].w_mem_used << std::endl
           << " avg bytes read " << times_by_type[col_id].w_read_bytes << std::endl
           << " avg bytes written " << times_by_type[col_id].w_write_bytes
+          << " index load time " << times_by_type[col_id].index_load_time
           << std::endl;
           
           runfile << std::setprecision(3)  <<"POINT QUERY: minimum average time w index with bloomfilter " 
@@ -453,6 +465,8 @@ int parquet_reader(int argc,char** argv) {
           << " avg memory used in kB " << times_by_type[col_id].b_mem_used << std::endl
           << " avg bytes read " << times_by_type[col_id].b_read_bytes << std::endl
           << " avg bytes written " << times_by_type[col_id].b_write_bytes
+          << " index load time " << times_by_type[col_id].index_load_time
+          << " blf load time " << times_by_type[col_id].blf_load_time
           << std::endl;
         
           runfile << std::setprecision(3)  <<"POINT QUERY: minimum average time w/o index with bloomfilter " 
@@ -461,6 +475,7 @@ int parquet_reader(int argc,char** argv) {
           << " avg memory used in kB " << times_by_type[col_id].w_blf_mem_used << std::endl
           << " avg bytes read " << times_by_type[col_id].w_blf_read_bytes << std::endl
           << " avg bytes written " << times_by_type[col_id].w_blf_write_bytes
+          << " blf load time " << times_by_type[col_id].blf_load_time
           << std::endl;
 
           // runfile << std::setprecision(3)  <<"POINT QUERY: minimum average time w index with binary with bloomfilter " 
@@ -482,7 +497,10 @@ int parquet_reader(int argc,char** argv) {
        std::stringstream ss(col_num);
        int colid;
        ss >> colid;
-        run_for_one_predicate(runfile,num_columns,num_row_groups,parquet_reader,colid,argv,3,0,true,true,true);
+       for ( int r = 0; r < num_row_groups; r++) {
+        std::shared_ptr<parquet::RowGroupReader> row_group_reader = parquet_reader->RowGroup(r);
+          run_for_one_predicate(runfile,num_columns,row_group_reader,parquet_reader,colid,argv,3,0,true,true,true);
+       }
      }
      
 
@@ -491,8 +509,11 @@ int parquet_reader(int argc,char** argv) {
        std::stringstream ss(col_num);
        int colid;
        ss >> colid;
-       run_for_one_predicate(runfile,num_columns,num_row_groups,parquet_reader,colid,argv,3,1,true,true,true);
-       run_for_one_predicate(runfile,num_columns,num_row_groups,parquet_reader,colid,argv,4,-1,true,true,true);
+       for ( int r = 0; r < num_row_groups; r++) {
+        std::shared_ptr<parquet::RowGroupReader> row_group_reader = parquet_reader->RowGroup(r);
+         run_for_one_predicate(runfile,num_columns,row_group_reader,parquet_reader,colid,argv,3,1,true,true,true);
+         run_for_one_predicate(runfile,num_columns,row_group_reader,parquet_reader,colid,argv,4,-1,true,true,true);
+       }
      }
      runfile.close();
      return 0;
@@ -503,7 +524,7 @@ int parquet_reader(int argc,char** argv) {
 
 }
 
-trun run_for_one_predicate(std::ofstream& runfile,int num_columns,int num_row_groups, std::unique_ptr<parquet::ParquetFileReader>& parquet_reader, int colid,char** argv,int predicate_index, 
+trun run_for_one_predicate(std::ofstream& runfile,int num_columns,std::shared_ptr<parquet::RowGroupReader>& row_group_reader, std::unique_ptr<parquet::ParquetFileReader>& parquet_reader, int colid,char** argv,int predicate_index, 
                            int equal_to, bool binary_search, bool with_bloom_filter, bool with_page_bf) {
 
     
@@ -519,14 +540,14 @@ trun run_for_one_predicate(std::ofstream& runfile,int num_columns,int num_row_gr
     int64_t prev_mem_used = 0;
     int64_t curr_mem_used = 0;
   // Iterate over all the RowGroups in the file
-    for (int r = 0; r < num_row_groups; ++r) {
+    //for (int r = 0; r < num_row_groups; ++r) 
+    {
     
       
       char *predicate_val  = argv[predicate_index];
 
       int col_id = colid;
         // Get the RowGroup Reader
-       std::shared_ptr<parquet::RowGroupReader> row_group_reader = parquet_reader->RowGroup(r);
 
         clock_t start_time,end_time;
         float total_time= 0.0;
@@ -596,6 +617,7 @@ trun run_for_one_predicate(std::ofstream& runfile,int num_columns,int num_row_gr
             runfile << "\n number of bytes written to storage (in B): " << curr_num_bytes_w - prev_num_bytes_w << std::endl; 
             runfile << "\n number of bytes read from cache (in B): " << curr_num_bytes_rc - prev_num_bytes_r << std::endl;
             runfile << "\n number of bytes written cancelled by cache (in B): " << curr_num_bytes_wc - prev_num_bytes_wc << std::endl; 
+            runfile << "\n index load time: " << row_group_reader->GetIndexLoadTime() << std::endl; 
             total_time = (t!=0 && time_elapsed > total_time)? total_time:time_elapsed;
         }
         
@@ -631,6 +653,8 @@ trun run_for_one_predicate(std::ofstream& runfile,int num_columns,int num_row_gr
             runfile << "\n number of bytes written to storage (in B): " << curr_num_bytes_w - prev_num_bytes_w << std::endl; 
             runfile << "\n number of bytes read from cache (in B): " << curr_num_bytes_rc - prev_num_bytes_r << std::endl;
             runfile << "\n number of bytes written cancelled by cache (in B): " << curr_num_bytes_wc - prev_num_bytes_wc << std::endl; 
+            runfile << "\n index load time: " << row_group_reader->GetIndexLoadTime() << std::endl; 
+            runfile << "\n blf load time: " << row_group_reader->GetBLFLoadTime() << std::endl; 
             total_time = (t!=0 && time_elapsed > total_time)? total_time:time_elapsed;
         }
         
@@ -666,7 +690,7 @@ trun run_for_one_predicate(std::ofstream& runfile,int num_columns,int num_row_gr
             runfile << "\n number of bytes written to storage (in B): " << curr_num_bytes_w - prev_num_bytes_w << std::endl; 
             runfile << "\n number of bytes read from cache (in B): " << curr_num_bytes_rc - prev_num_bytes_r << std::endl;
             runfile << "\n number of bytes written cancelled by cache (in B): " << curr_num_bytes_wc - prev_num_bytes_wc << std::endl; 
-
+            runfile << "\n blf load time: " << row_group_reader->GetBLFLoadTime() << std::endl; 
             total_time = (t!=0 && time_elapsed > total_time)? total_time:time_elapsed;
         }
         
