@@ -39,7 +39,7 @@
 #include "parquet/properties.h"
 #include "parquet/schema.h"
 #include "parquet/types.h"
-
+#include <chrono>
 #include <time.h>
 
 namespace parquet {
@@ -1163,11 +1163,12 @@ class SerializedRowGroup : public RowGroupReader::Contents {
     if ( with_bloom_filter ) {
 
       if (first_time_blf) {
-        float start_time = clock();
+        auto start_time = std::chrono::high_resolution_clock::now();
         DeserializeBloomFilter(*reinterpret_cast<ColumnChunkMetaData*>(col.get()),blf,source_,properties_);
-        float end_time = clock();
+        auto end_time = std::chrono::high_resolution_clock::now();
+        auto duration = std::chrono::duration_cast<std::chrono::microseconds>(start_time-end_time);
         first_time_blf = false;
-        blf_load_time = ((float) (end_time-start_time))/CLOCKS_PER_SEC;
+        blf_load_time = (float) duration.count();
       }
 
       GetPageWithoutIndex(source_, properties_, predicate, min_index,row_index,type_num, with_binarysearch, count_pages_scanned, blf, with_bloom_filter, with_page_bf);    
@@ -1178,11 +1179,12 @@ class SerializedRowGroup : public RowGroupReader::Contents {
       if ( has_page_index ) {
         
         if (first_time_index) {
-           float start_time = clock();
+           auto start_time = std::chrono::high_resolution_clock::now();
            DeserializeColumnIndex(*reinterpret_cast<ColumnChunkMetaData*>(col.get()),&col_index, source_, properties_);
            DeserializeOffsetIndex(*reinterpret_cast<ColumnChunkMetaData*>(col.get()),&offset_index, source_, properties_);
-           float end_time = clock();
-           index_load_time = ((float) (end_time-start_time))/CLOCKS_PER_SEC;
+           auto end_time = std::chrono::high_resolution_clock::now();
+           auto duration = std::chrono::duration_cast<std::chrono::microseconds>(start_time-end_time);
+           index_load_time = (float) duration.count();
            first_time_index = false;
         }
 

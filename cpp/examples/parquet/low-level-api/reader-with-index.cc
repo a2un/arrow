@@ -37,6 +37,7 @@
 #include "parquet/types.h"
 #include "parquet/parquet_types.h"
 #include "parquet/file_reader.h"
+#include <chrono>
 
 using parquet::ConvertedType;
 using parquet::Repetition;
@@ -565,11 +566,11 @@ trun run_for_one_predicate(std::ofstream& runfile,int num_columns,std::shared_pt
         runfile << " ########################################################################## " << std::endl;
         runfile << "\n time for predicate one pass without index: " << std::endl;
         for(int t  =0 ; t< num_runs; t++){
-            start_time = clock();
+            auto start_time = std::chrono::high_resolution_clock::now();
           total_pages_scanned += first_pass_for_predicate_only(runfile, row_group_reader,col_id,num_columns,predicate_val,false,equal_to,!binary_search,!with_bloom_filter, !with_page_bf);
-          end_time = clock();
-          
-            float time_elapsed = ((float) (end_time-start_time))/CLOCKS_PER_SEC;
+          auto end_time = std::chrono::high_resolution_clock::now();
+          auto duration = std::chrono::duration_cast<std::chrono::microseconds>(start_time-end_time);
+            float time_elapsed = (float) duration.count();
 
             runfile << std::setprecision(3) << time_elapsed << std::endl;
             curr_mem_used = getMemValue();
@@ -601,11 +602,11 @@ trun run_for_one_predicate(std::ofstream& runfile,int num_columns,std::shared_pt
         runfile << " ------------------------------------------------------------------------ " << std::endl;
         runfile << "\n time for predicate one pass without bloom filter: " << std::endl;
         for(int t  =0 ; t< num_runs; t++){
-            start_time = clock();
+            auto start_time = std::chrono::high_resolution_clock::now();
           first_pass_for_predicate_only(runfile, row_group_reader,col_id,num_columns,predicate_val,true,equal_to, !binary_search, !with_bloom_filter,!with_page_bf);
-          end_time = clock();
-          
-            float time_elapsed = ((float) (end_time-start_time))/CLOCKS_PER_SEC;
+          auto end_time = std::chrono::high_resolution_clock::now();
+          auto duration = std::chrono::duration_cast<std::chrono::microseconds>(start_time-end_time);
+            float time_elapsed = (float) duration.count();
 
             runfile << std::setprecision(3) << time_elapsed << std::endl;
             curr_mem_used = getMemValue();
@@ -637,11 +638,12 @@ trun run_for_one_predicate(std::ofstream& runfile,int num_columns,std::shared_pt
         runfile << " ------------------------------------------------------------------------ " << std::endl;
         runfile << "\n time for predicate one pass with bloom filter: "  << std::endl;
         for(int t  =0 ; t< num_runs; t++){
-            start_time = clock();
+            auto start_time = std::chrono::high_resolution_clock::now();
           first_pass_for_predicate_only(runfile, row_group_reader,col_id,num_columns,predicate_val,true,equal_to, !binary_search, with_bloom_filter,!with_page_bf);
-          end_time = clock();
+          auto end_time = std::chrono::high_resolution_clock::now();
+          auto duration = std::chrono::duration_cast<std::chrono::microseconds>(start_time-end_time);
           
-            float time_elapsed = ((float) (end_time-start_time))/CLOCKS_PER_SEC;
+            float time_elapsed = (float) duration.count();
 
             runfile << std::setprecision(3) << time_elapsed << std::endl;
             curr_mem_used = getMemValue();
@@ -674,11 +676,12 @@ trun run_for_one_predicate(std::ofstream& runfile,int num_columns,std::shared_pt
         runfile << " ------------------------------------------------------------------------ " << std::endl;
         runfile << "\n time for predicate without index with bloom filter: " << std::endl;
         for(int t  =0 ; t< num_runs; t++){
-            start_time = clock();
+            auto start_time = std::chrono::high_resolution_clock::now();
           first_pass_for_predicate_only(runfile, row_group_reader,col_id,num_columns,predicate_val,false,equal_to, !binary_search, with_bloom_filter,!with_page_bf);
-          end_time = clock();
-          
-            float time_elapsed = ((float) (end_time-start_time))/CLOCKS_PER_SEC;
+          auto end_time = std::chrono::high_resolution_clock::now();
+          auto duration = std::chrono::duration_cast<std::chrono::microseconds>(start_time-end_time);
+
+            float time_elapsed = (float) duration.count();
 
             runfile << std::setprecision(3) << time_elapsed << std::endl;
             curr_mem_used = getMemValue();
