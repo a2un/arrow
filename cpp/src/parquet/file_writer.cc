@@ -49,9 +49,9 @@ void RowGroupWriter::Close() {
   }
 }
 
-void RowGroupWriter::CloseWithIndex() {
+void RowGroupWriter::CloseWithIndex(bool use_index, bool with_bf) {
   if (contents_) {
-    contents_->CloseWithIndex();
+    contents_->CloseWithIndex(use_index, with_bf);
   }
 }
 
@@ -93,7 +93,7 @@ void RowGroupWriter::InitBloomFilter(int num_rows,uint32_t& num_bytes) {
 
 ColumnWriter* RowGroupWriter::NextColumn() { return contents_->NextColumn(); }
 
-ColumnWriter* RowGroupWriter::NextColumnWithIndex(uint32_t& num_bytes) { return contents_->NextColumnWithIndex(num_bytes); }
+ColumnWriter* RowGroupWriter::NextColumnWithIndex(uint32_t& num_bytes,bool with_index, bool with_bf) { return contents_->NextColumnWithIndex(num_bytes,with_index, with_bf); }
 
 ColumnWriter* RowGroupWriter::column(int i) { return contents_->column(i); }
 
@@ -178,7 +178,7 @@ class RowGroupSerializer : public RowGroupWriter::Contents {
     return column_writers_[0].get();
   }
 
-  ColumnWriter* NextColumnWithIndex(uint32_t& num_bytes) override {
+  ColumnWriter* NextColumnWithIndex(uint32_t& num_bytes,bool with_index, bool with_bf) override {
     use_index = true;
     if (buffered_row_group_) {
       throw ParquetException(
@@ -193,13 +193,14 @@ class RowGroupSerializer : public RowGroupWriter::Contents {
     auto col_meta = metadata_->NextColumnChunk();
 
     if (column_writers_[0]) {
-      total_bytes_written_ += column_writers_[0]->CloseWithIndex();
+      total_bytes_written_ += (with_index)? column_writers_[0]->CloseWithIndex(): column_writers_[0]->Close();
       sink_->Tell(&file_pos_);
-      column_writers_[0]->WriteIndex(file_pos_,column_index_offset,offset_index_offset);
+      if (with_index)
+        column_writers_[0]->WriteIndex(file_pos_,column_index_offset,offset_index_offset);
     }
 
     //total_bytes_written_ += blf_[next_column_index_].GetBitsetSize();
-    if ( column_writers_[0] ) {
+    if ( column_writers_[0] && with_bf ) {
       // next column bloom filter initialized
       num_bytes = blf_[next_column_index_].OptimalNumOfBits(column_writers_[0]->rows_written() , false_positive_prob);
       blf_[next_column_index_].Init(num_bytes);
@@ -272,7 +273,7 @@ class RowGroupSerializer : public RowGroupWriter::Contents {
     }
   }
 
-  void CloseWithIndex() override {
+  void CloseWithIndex(bool use_index, bool with_bf) override {
     if (!closed_) {
       closed_ = true;
       CheckRowsWritten();
@@ -280,12 +281,16 @@ class RowGroupSerializer : public RowGroupWriter::Contents {
       for (size_t i = 0; i < column_writers_.size(); i++) {
         if (column_writers_[i]) {
           total_bytes_written_ += (!use_index)? column_writers_[i]->Close(): column_writers_[i]->CloseWithIndex();
-          column_writers_[i]->WriteIndex(0,column_index_offset,offset_index_offset);
+          if (use_index)
+            column_writers_[i]->WriteIndex(0,column_index_offset,offset_index_offset);
+          
           all_used_cws_.push_back(column_writers_[i]);
           column_writers_[i].reset();
         }
       }
-      WriteBloomFilterOffsets();
+      
+      if ( with_bf )
+        WriteBloomFilterOffsets();
       column_writers_.clear();
 
       // Ensures all columns have been written
@@ -439,14 +444,14 @@ class FileSerializer : public ParquetFileWriter::Contents {
     }
   }
 
-  void CloseWithIndex() override {
+  void CloseWithIndex(bool use_index, bool with_bf) override {
     if (is_open_) {
       // If any functions here raise an exception, we set is_open_ to be false
       // so that this does not get called again (possibly causing segfault)
       is_open_ = false;
       if (row_group_writer_) {
         num_rows_ += row_group_writer_->num_rows();
-        row_group_writer_->CloseWithIndex();
+        row_group_writer_->CloseWithIndex(use_index, with_bf);
       }
       row_group_writer_.reset();
 
@@ -610,9 +615,9 @@ void ParquetFileWriter::Close() {
   }
 }
 
-void ParquetFileWriter::CloseWithIndex() {
+void ParquetFileWriter::CloseWithIndex(bool use_index, bool with_bf) {
   if (contents_) {
-    contents_->CloseWithIndex();
+    contents_->CloseWithIndex(use_index, with_bf);
     file_metadata_ = contents_->metadata();
     contents_.reset();
   }

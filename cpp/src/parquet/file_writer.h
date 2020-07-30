@@ -44,7 +44,7 @@ class PARQUET_EXPORT RowGroupWriter {
     // to be used only with ParquetFileWriter::AppendRowGroup
     virtual ColumnWriter* NextColumn() = 0;
 
-    virtual ColumnWriter* NextColumnWithIndex(uint32_t& num_bytes) = 0;
+    virtual ColumnWriter* NextColumnWithIndex(uint32_t& num_bytes,bool with_index, bool with_bf) = 0;
 
     virtual void AppendRowGroupBloomFilter(int32_t values) = 0;
 
@@ -64,7 +64,7 @@ class PARQUET_EXPORT RowGroupWriter {
     virtual int current_column() const = 0;
     virtual void Close() = 0;
 
-    virtual void CloseWithIndex() = 0;
+    virtual void CloseWithIndex(bool use_index, bool with_bf) = 0;
 
     // total bytes written by the page writer
     virtual int64_t total_bytes_written() const = 0;
@@ -83,7 +83,7 @@ class PARQUET_EXPORT RowGroupWriter {
   /// of the previous one cannot be modified anymore.
   ColumnWriter* NextColumn();
 
-  ColumnWriter* NextColumnWithIndex(uint32_t& num_bytes);
+  ColumnWriter* NextColumnWithIndex(uint32_t& num_bytes, bool with_index, bool with_bf);
 
   void AppendRowGroupBloomFilter(int32_t values);
 
@@ -100,7 +100,7 @@ class PARQUET_EXPORT RowGroupWriter {
   /// Index of currently written column
   int current_column();
   void Close();
-  void CloseWithIndex();
+  void CloseWithIndex(bool use_index, bool with_bf);
 
   int num_columns() const;
 
@@ -152,7 +152,7 @@ class PARQUET_EXPORT ParquetFileWriter {
     // Perform any cleanup associated with the file contents
     virtual void Close() = 0;
 
-    virtual void CloseWithIndex() = 0;
+    virtual void CloseWithIndex(bool use_index, bool with_bf) = 0;
 
     /// \note Deprecated since 1.3.0
     RowGroupWriter* AppendRowGroup(int64_t num_rows);
@@ -201,7 +201,7 @@ class PARQUET_EXPORT ParquetFileWriter {
   void Open(std::unique_ptr<Contents> contents);
   void Close();
 
-  void CloseWithIndex();
+  void CloseWithIndex(bool use_index, bool with_bf);
 
   // Construct a RowGroupWriter for the indicated number of rows.
   //
