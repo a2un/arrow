@@ -85,15 +85,15 @@ void RowGroupWriter::AppendRowGroupBloomFilter(ByteArray* values) {
    }
 }
 
-void RowGroupWriter::InitBloomFilter(int num_rows,uint32_t& num_bytes) {
+void RowGroupWriter::InitBloomFilter(int num_rows,uint32_t& num_bytes, float fpp) {
    if (contents_) {
-      contents_->InitBloomFilter(num_rows,num_bytes);
+      contents_->InitBloomFilter(num_rows,num_bytes, fpp);
    }
 }
 
 ColumnWriter* RowGroupWriter::NextColumn() { return contents_->NextColumn(); }
 
-ColumnWriter* RowGroupWriter::NextColumnWithIndex(uint32_t& num_bytes,bool with_index, bool with_bf) { return contents_->NextColumnWithIndex(num_bytes,with_index, with_bf); }
+ColumnWriter* RowGroupWriter::NextColumnWithIndex(uint32_t& num_bytes,bool with_index, bool with_bf, float fpp) { return contents_->NextColumnWithIndex(num_bytes,with_index, with_bf, fpp); }
 
 ColumnWriter* RowGroupWriter::column(int i) { return contents_->column(i); }
 
@@ -178,7 +178,7 @@ class RowGroupSerializer : public RowGroupWriter::Contents {
     return column_writers_[0].get();
   }
 
-  ColumnWriter* NextColumnWithIndex(uint32_t& num_bytes,bool with_index, bool with_bf) override {
+  ColumnWriter* NextColumnWithIndex(uint32_t& num_bytes,bool with_index, bool with_bf, float fpp) override {
     use_index = true;
     if (buffered_row_group_) {
       throw ParquetException(
@@ -202,7 +202,7 @@ class RowGroupSerializer : public RowGroupWriter::Contents {
     //total_bytes_written_ += blf_[next_column_index_].GetBitsetSize();
     if ( column_writers_[0] && with_bf ) {
       // next column bloom filter initialized
-      num_bytes = blf_[next_column_index_].OptimalNumOfBits(column_writers_[0]->rows_written() , false_positive_prob);
+      num_bytes = blf_[next_column_index_].OptimalNumOfBits(column_writers_[0]->rows_written() , fpp);
       blf_[next_column_index_].Init(num_bytes);
       
       //current column writer saved for future use
@@ -322,9 +322,9 @@ class RowGroupSerializer : public RowGroupWriter::Contents {
   }
 
 
-  void InitBloomFilter(int num_rows,uint32_t& num_bytes) override {
+  void InitBloomFilter(int num_rows,uint32_t& num_bytes, float fpp) override {
       // first time column initialization, not possible in nextcolumnchunk
-      num_bytes = blf_[next_column_index_].OptimalNumOfBits(num_rows , false_positive_prob);
+      num_bytes = blf_[next_column_index_].OptimalNumOfBits(num_rows , fpp);
       blf_[next_column_index_].Init(num_bytes);
   }
 
@@ -364,7 +364,6 @@ class RowGroupSerializer : public RowGroupWriter::Contents {
   bool buffered_row_group_;
   bool use_index = false;
 
-  double false_positive_prob = 0.001;
 
   void CheckRowsWritten() const {
     // verify when only one column is written at a time
