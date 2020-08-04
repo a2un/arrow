@@ -112,6 +112,10 @@ void BlockSplitBloomFilter::WriteTo(ArrowOutputStream* sink) const {
   PARQUET_THROW_NOT_OK(sink->Write(data_->mutable_data(), num_bytes_));
 }
 
+std::shared_ptr<::arrow::Buffer> BlockSplitBloomFilter::getData() const{
+  return data_;
+}
+
 void BlockSplitBloomFilter::SetMask(uint32_t key, BlockMask& block_mask) const {
   for (int i = 0; i < kBitsSetPerBlock; ++i) {
     block_mask.item[i] = key * SALT[i];

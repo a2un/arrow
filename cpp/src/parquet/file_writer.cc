@@ -27,6 +27,9 @@
 #include "parquet/exception.h"
 #include "parquet/platform.h"
 #include "parquet/schema.h"
+#include "arrow/io/file.h"
+#include "arrow/io/compressed.h"
+#include "arrow/util/compression.h"
 
 using arrow::MemoryPool;
 
@@ -346,7 +349,13 @@ class RowGroupSerializer : public RowGroupWriter::Contents {
           }
 
           blf_[i].WriteTo(sink_.get());
-
+          std::shared_ptr<::arrow::io::FileOutputStream> out_file;
+          ::arrow::io::FileOutputStream::Open("bloom-filter-"+ std::to_string(i) +".dat",&out_file);
+          std::unique_ptr<::arrow::util::Codec> codec;
+          ::arrow::util::Codec::Create(::arrow::Compression::type::GZIP,&codec);
+          std::shared_ptr<::arrow::io::CompressedOutputStream> cstream;
+          ::arrow::io::CompressedOutputStream::Make(codec.get(),out_file,&cstream);
+          cstream->Write(blf_[i].getData()->mutable_data(),blf_[i].GetBitsetSize());
           all_used_cws_[i]->WriteBloomFilterOffset(filepos);
           all_used_cws_[i].reset();
         }

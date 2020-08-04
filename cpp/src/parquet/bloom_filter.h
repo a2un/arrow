@@ -56,6 +56,8 @@ class PARQUET_EXPORT BloomFilter {
   /// @param sink the output stream to write
   virtual void WriteTo(ArrowOutputStream* sink) const = 0;
 
+  virtual std::shared_ptr<::arrow::Buffer> getData() const = 0;
+
   /// Get the number of bytes of bitset
   virtual uint32_t GetBitsetSize() const = 0;
 
@@ -190,6 +192,7 @@ class PARQUET_EXPORT BlockSplitBloomFilter : public BloomFilter {
   bool FindHash(uint64_t hash) const override;
   void InsertHash(uint64_t hash) override;
   void WriteTo(ArrowOutputStream* sink) const override;
+  std::shared_ptr<::arrow::Buffer> getData() const override;
   uint32_t GetBitsetSize() const override { return num_bytes_; }
 
   format::BloomFilterHash GetHashStrategy() const override { return bfhash_; }
