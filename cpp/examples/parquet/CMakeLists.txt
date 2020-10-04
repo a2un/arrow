@@ -21,6 +21,16 @@ add_executable(parquet-arrow-example parquet-arrow/reader-writer.cc)
 add_executable(parquet-stream-api-example parquet-stream-api/stream-reader-writer.cc)
 target_include_directories(parquet-low-level-example PRIVATE low-level-api/)
 target_include_directories(parquet-low-level-example2 PRIVATE low-level-api/)
+add_executable(parquet-with-index-page-skipping low-level-api/reader-writer-with-index.cc)
+add_executable(parquet-reader-with-pageindex low-level-api/reader-with-index.cc)
+add_executable(parquet-writer-with-pageindex low-level-api/writer-with-index.cc)
+target_include_directories(parquet-low-level-example PRIVATE low-level-api/)
+target_include_directories(parquet-low-level-example2 PRIVATE low-level-api/)
+target_include_directories(parquet-reader-with-pageindex PRIVATE low-level-api/)
+target_include_directories(parquet-writer-with-pageindex PRIVATE low-level-api/)
+target_link_libraries(parquet-low-level-example parquet_static)
+target_link_libraries(parquet-low-level-example2 parquet_static)
+target_link_libraries(parquet-with-index-page-skipping parquet_static)
 
 # The variables in these files are for illustration purposes
 set(PARQUET_EXAMPLES_WARNING_SUPPRESSIONS
@@ -47,6 +57,8 @@ if(UNIX)
       PROPERTY COMPILE_FLAGS "-Wno-unused-variable")
   endforeach()
 endif()
+target_link_libraries(parquet-reader-with-pageindex parquet_static)
+target_link_libraries(parquet-writer-with-pageindex parquet_static)
 
 # Prefer shared linkage but use static if shared build is deactivated
 if (ARROW_BUILD_SHARED)
@@ -76,3 +88,7 @@ if (PARQUET_REQUIRE_ENCRYPTION)
     parquet-encryption-example
     parquet-encryption-example-all-crypto-options)
 endif()
+  parquet-with-index-page-skipping
+  parquet-writer-with-pageindex
+  parquet-reader-with-pageindex
+  parquet-arrow-example)

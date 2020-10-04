@@ -42,8 +42,8 @@
  * https://github.com/apache/parquet-format/blob/master/LogicalTypes.md
  **/
 
-constexpr int NUM_ROWS_PER_ROW_GROUP = 500;
-const char PARQUET_FILENAME[] = "parquet_cpp_example.parquet";
+constexpr int NUM_ROWS_PER_ROW_GROUP = 15000000;
+const char PARQUET_FILENAME[] = "parquet_cpp_example_15M.parquet";
 
 int main(int argc, char** argv) {
   /**********************************************************************************
@@ -57,12 +57,14 @@ int main(int argc, char** argv) {
     using FileClass = ::arrow::io::FileOutputStream;
     std::shared_ptr<FileClass> out_file;
     PARQUET_ASSIGN_OR_THROW(out_file, FileClass::Open(PARQUET_FILENAME));
+    PARQUET_THROW_NOT_OK(FileClass::Open(PARQUET_FILENAME, &out_file));
 
     // Setup the parquet schema
     std::shared_ptr<GroupNode> schema = SetupSchema();
 
     // Add writer properties
     parquet::WriterProperties::Builder builder;
+    builder.compression(parquet::Compression::UNCOMPRESSED);
     builder.compression(parquet::Compression::SNAPPY);
     std::shared_ptr<parquet::WriterProperties> props = builder.build();
 
@@ -73,6 +75,13 @@ int main(int argc, char** argv) {
     // Append a RowGroup with a specific number of rows.
     parquet::RowGroupWriter* rg_writer = file_writer->AppendRowGroup();
 
+    // // Write the Bool column
+    // parquet::BoolWriter* bool_writer =
+    //     static_cast<parquet::BoolWriter*>(rg_writer->NextColumn());
+    // for (int i = 0; i < NUM_ROWS_PER_ROW_GROUP; i++) {
+    //   bool value = ((i % 2) == 0) ? true : false;
+    //   bool_writer->WriteBatch(1, nullptr, nullptr, &value);
+    // }
     // Write the Bool column
     parquet::BoolWriter* bool_writer =
         static_cast<parquet::BoolWriter*>(rg_writer->NextColumn());
