@@ -559,7 +559,7 @@ trun run_for_one_predicate(std::ofstream& runfile,int num_columns,std::shared_pt
         runfile << " Column ID: " << col_id << "| Column Type: " << row_group_reader->Column(col_id)->type() << std::endl;
 
         /********FIRST PASS WITHOUT INDEX***************/
-        total_time = 0.0;
+        /*total_time = 0.0;
         prev_mem_used = getMemValue();
         prev_num_bytes_r = getReadBytesValue();
         prev_num_bytes_w = getWriteBytesValue();
@@ -590,11 +590,11 @@ trun run_for_one_predicate(std::ofstream& runfile,int num_columns,std::shared_pt
         avgtime.wo_mem_used = curr_mem_used-prev_mem_used;
         avgtime.wo_read_bytes = curr_num_bytes_r - prev_num_bytes_r;
         avgtime.wo_write_bytes = curr_num_bytes_w - prev_num_bytes_w;
-        runfile << " ------------------------------------------------------------------------ " << std::endl;
+        runfile << " ------------------------------------------------------------------------ " << std::endl;*/
        
         /**************FIRST PASS WITH INDEX WITHOUT BINARY WITHOUT BF PAGE BF*****************/
 
-        total_time = 0.0;
+        /*total_time = 0.0;
         total_pages_scanned = 0.0;
         prev_mem_used = getMemValue();
         prev_num_bytes_r = getReadBytesValue();
@@ -627,10 +627,10 @@ trun run_for_one_predicate(std::ofstream& runfile,int num_columns,std::shared_pt
         avgtime.w_mem_used = curr_mem_used-prev_mem_used;
         avgtime.w_read_bytes = curr_num_bytes_r - prev_num_bytes_r;
         avgtime.w_write_bytes = curr_num_bytes_w - prev_num_bytes_w;
-        runfile << " ------------------------------------------------------------------------ " << std::endl;
+        runfile << " ------------------------------------------------------------------------ " << std::endl;*/
         /**************FIRST PASS WITH INDEX WITH BINARY WITHOUT BF PAGE BF*****************/
 
-        total_time = 0.0;
+        /*total_time = 0.0;
         total_pages_scanned = 0.0;
         prev_mem_used = getMemValue();
         prev_num_bytes_r = getReadBytesValue();
@@ -665,7 +665,7 @@ trun run_for_one_predicate(std::ofstream& runfile,int num_columns,std::shared_pt
         avgtime.b_mem_used = curr_mem_used-prev_mem_used;
         avgtime.b_read_bytes = curr_num_bytes_r - prev_num_bytes_r;
         avgtime.b_write_bytes = curr_num_bytes_w - prev_num_bytes_w;
-        runfile << " ------------------------------------------------------------------------ " << std::endl;
+        runfile << " ------------------------------------------------------------------------ " << std::endl;*/
         /**************FIRST PASS WITH INDEX WITH BINARY WITH BF WITHOUT PAGE BF*****************/
 
         total_time = 0.0;

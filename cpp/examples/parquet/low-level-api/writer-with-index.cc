@@ -741,10 +741,10 @@ int main(int argc, char** argv) {
     int NUM_ROWS = atoi(argv[1]);
     int num_rg = atoi(argv[2]);
     float fpp = atof(argv[3]);
-    writeparquetwithoutindexbf(NUM_ROWS,num_rg,fpp);
-    writeparquetonlyindex(NUM_ROWS,num_rg,fpp);
-    writeparquetonlybf(NUM_ROWS,num_rg,fpp);
-    writeparquetwithindexbf(NUM_ROWS,num_rg,fpp);
+    //writeparquetwithoutindexbf(NUM_ROWS,num_rg,fpp);
+    //writeparquetonlyindex(NUM_ROWS,num_rg,fpp);
+    //writeparquetonlybf(NUM_ROWS,num_rg,fpp);
+    writeparquetwithindexbfunsorted(NUM_ROWS,num_rg,fpp);
   }
   
   std::cout << "Parquet Writing and Reading Complete" << std::endl;
